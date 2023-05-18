@@ -58,7 +58,6 @@ session_sim.sim(158)
 session_sim.sim(176)
 session_sim.sim(341)
 
-...
 
 
 cprint('-'*100+'\n', YELLOW)
