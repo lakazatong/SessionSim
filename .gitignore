@@ -1,3 +1,9 @@
 *.html
 test.*
 test/
+snek/session
+*_single
+*_sim
+*.har
+__pycache__
+snek*
