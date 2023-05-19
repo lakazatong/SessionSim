@@ -254,58 +254,67 @@ class SessionSim:
 		# working directory
 		self.wd = os.getcwd() if wd == None else wd
 
-	def build_json_request(self):
+	def prepare_post_request(self):
+		is_json = False
+		data_type = 'text/plain;charset=UTF-8'
+		if 'content-type' in self.har_request['headers']:
+			is_json = self.har_request['headers']['content-type'] == 'application/json'
+			data_type = self.har_request['headers']['content-type']
+		elif 'mimeType' in self.har_request['postData']:
+			is_json = self.har_request['postData']['mimeType'] == 'application/json'
+			data_type = self.har_request['postData']['mimeType']
+		else:
+			cprint(f'could not determine type of postData, setting it to "{data_type}" by default\
+				(a json representation of the request sent is accessible at self.json_request)', RED)
+		data = self.request['postData']['text']
+		return data_type, data
+
+	def prepare_get_request(self):
+		if self.previous_response == None: return
+	 	
+	 	# check for redirections
+		if self.previous_response.content != b'' and self.previous_response.content.startswith(b'https://accounts.zalando.com/'):
+			cprint('following url in previous response content', YELLOW)
+			self.request['url'] = self.previous_response['content']['text']
+		if 'redirectURL' in self.previous_response:
+			cprint('following redirectURL in previous response', YELLOW)
+			self.request['url'] = 'https://accounts.zalando.com'+self.previous_response['redirectURL']
+		if 'location' in self.previous_response.headers:
+			cprint('following location in previous response headers', YELLOW)
+			self.request['url'] = self.previous_response.headers['location']
+		
+		# keep track of referer only if previous response was not a redirection ?
+		if self.previous_response.status_code < 300 and self.previous_response.status_code >= 400:
+			self.request['headers']['Referer'] = self.previous_request['url']
+
+	def prepare_request(self):
+		data_type, data = None, None
+		method = self.request['method']
+		if method == 'POST':
+			data_type, data = self.prepare_post_request()
+		elif method == 'GET':
+			self.prepare_get_request()
+		else:
+			cprint(f'does not support {method} method, set it to GET request', RED)
+			method = 'GET'
+		# json representation of the request for easy debugging
 		url = self.request['url']
 		headers = self.request['headers']
 		cookies = self.request['cookies']
 		params = har_to_json(self.request['queryString'])
 		self.json_request = {
-			"code": "",
+			"code": "requests.request('GET', url, headers=headers, cookies=cookies, params=params, data=data, allow_redirects=False)",
 			"args": {
 				"url": url,
 				"headers": headers,
 				"cookies": cookies,
-				"params": params
+				"params": params,
+				"data_type": data_type,
+				"data": data
 			}
 		}
-		return url, headers, cookies, params
-
-	def create_request(self):
 		def prepared_request():
-			if self.request['method'] == 'POST':
-				url, headers, cookies, params = self.build_json_request()
-				# if type(self.request['postData']) is dict:
-				data = self.request['postData']['text']
-				self.json_request['args']['data'] = data
-				is_json = False
-				if 'content-type' in self.har_request['headers']: if_json = self.har_request['headers']['content-type'] == 'application/json'
-				elif 'mimeType' in self.har_request['postData']: if_json = self.har_request['postData']['mimeType'] == 'application/json'
-				else: cprint('could not determine type of postData, considers it is text (you can access the requests.request arguments in self.json_request[\'args\'])', RED)
-				if is_json:
-					self.response = requests.request('POST', url, headers=headers, cookies=cookies, params=params, json=data, allow_redirects=False)
-					self.json_request['code'] = f'requests.request(\'POST\', url, headers=headers, cookies=cookies, params=params, json=data, allow_redirects=False)'
-				else:
-					self.response = requests.request('POST', url, headers=headers, cookies=cookies, params=params, data=data, allow_redirects=False)
-					self.json_request['code'] = f'requests.request(\'POST\', url, headers=headers, cookies=cookies, params=params, data=data, allow_redirects=False)'
-			else:
-				if self.previous_response != None:
-				 	# check for redirections
-					if self.previous_response.content != b'' and self.previous_response.content.startswith(b'https://accounts.zalando.com/'):
-						cprint('following url in previous response content', YELLOW)
-						self.request['url'] = self.previous_response['content']['text']
-					if 'redirectURL' in self.previous_response:
-						cprint('following redirectURL in previous response', YELLOW)
-						self.request['url'] = 'https://accounts.zalando.com'+self.previous_response['redirectURL']
-					if 'location' in self.previous_response.headers:
-						cprint('following location in previous response headers', YELLOW)
-						self.request['url'] = self.previous_response.headers['location']
-					# keep track of referer only if previous response was not a redirection ?
-					if self.previous_response.status_code < 300 and self.previous_response.status_code >= 400:
-						self.request['headers']['Referer'] = self.previous_request['url']
-				url, headers, cookies, params = self.build_json_request()
-				self.response = requests.request('GET', url, headers=headers, cookies=cookies, params=params, allow_redirects=False)
-				self.json_request['code'] = f'requests.request(\'GET\', url, headers=headers, cookies=cookies, params=params, allow_redirects=False)'
-			return CustomResponse(self.response)
+			return CustomResponse(requests.request(method, url, headers=headers, cookies=cookies, params=params, data=data, allow_redirects=False))
 		return prepared_request
 
 	def report_error(self):
@@ -343,7 +352,8 @@ class SessionSim:
 
 	def make_request_from_HAR(self, max_retries=3):
 		# create and send the request
-		prepared_request = self.create_request()
+		prepared_request = self.prepare_request()
+		self.critical_function(self.index, self, before=True)
 		self.response = prepared_request()
 		# only consider first response
 		# if self.response.history != []:
@@ -391,7 +401,6 @@ class SessionSim:
 		# get cookies
 		self.get_required_cookies()
 		# make request
-		self.critical_function(self.index, self, before=True)
 		self.make_request_from_HAR()
 		# update cookies
 		if 'Set-Cookie' in self.response.headers: self.cookie_manager.update_cookies(self.response.headers['Set-Cookie'])
@@ -400,8 +409,8 @@ class SessionSim:
 		time.sleep(0.5)
 
 	def sim(self, index, prompt=False):
-		# init
 		print('-'*shutil.get_terminal_size().columns)
+		# init
 		self.critical_function_check()
 		self.folder = os.path.splitext(self.har_filename)[0]+'_single'
 		self.manage_folder(True)
