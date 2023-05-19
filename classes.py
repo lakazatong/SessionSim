@@ -1,26 +1,29 @@
-import requests, copy, itertools
+import requests, copy, itertools, shutil
 from funcs import *
 
 class CookieManager:
 	# parses : response.headers['Set-Cookie'] <class 'str'>
 
-	cookies_keys = ['csrf-token', '_abck', 'ak_bmsc', 'bm_mi', 'bm_sz', 'bm_sv', 'frsx', 'zalando-client-id', 'fvgs_ml', 'mpulseinject', 'zsn', 'zss', 'zsr', 'zsa', '5572cbed-2524-4e11-b0f1-f574f1d2ccb1']
+	cookies_keys = ['csrf-token', 'x-csrf-token', '_abck', 'ak_bmsc', 'bm_mi', 'bm_sz', 'bm_sv', 'frsx', 'Zalando-Client-Id', 'X-Zalando-Client-Id', 'fvgs_ml', 'mpulseinject', 'zsn', 'zss', 'zsr', 'zsa', 'zac', '5572cbed-2524-4e11-b0f1-f574f1d2ccb1']
 	cookies_params_keys = ['path', 'secure', 'samesite', 'domain', 'expires', 'max-age', 'httponly']
 	is_http_only = {
 		"csrf-token": False,
+		"x-csrf-token": False,
 		"_abck": False,
 		"ak_bmsc": True,
 		"bm_mi": False,
 		"bm_sz": False,
 		"bm_sv": False,
 		"frsx": False,
-		"zalando-client-id": True,
+		"Zalando-Client-Id": True,
+		"X-Zalando-Client-Id": True,
 		"fvgs_ml": False,
 		"mpulseinject": False,
 		"zsn": True,
 		"zss": True,
 		"zsr": True,
 		"zsa": True,
+		"zac": False,
 		"5572cbed-2524-4e11-b0f1-f574f1d2ccb1": True
 	}
 	cookies = {}
@@ -141,9 +144,18 @@ class CookieManager:
 		self.cookies[key]['value'] = value
 		self.cookies[key]['HttpOnly'] = self.is_http_only[key]
 		self.cookies[key]['Size'] = str(len(value)+len(key))
+		cprint('new cookie : ' + key, PURPLE)
 
 	def get_cookie(self, key):
-		return self.cookies[key]['value']
+		return self.cookies[key]['value'] if key in self.cookies else None
+
+	def load_snek_cookies(self, cookies):
+		for cookie in cookies:
+			self.cookies[cookie['name']] = {}
+			for key, value in cookie.items():
+				if key != 'name':
+					self.cookies[cookie['name']][key] = value
+
 
 class CustomResponse(requests.Response):
 	def __init__(self, response):
@@ -170,17 +182,22 @@ status codes
 class SessionSim:
 
 	# list of har formated requests to simulate
-	rq_list = []
+	request = {}
+	request_list = []
 	nb_requests = -1
 	saved_responses_indent = 3
+	previous_response = None
 
 	def load_har(self, har):
-		self.har = har
+		self.har_filename = har
 		# load har file
 		if os.path.exists(har):
 			with open(har, 'rb') as f:
-				self.rq_list = json.loads(f.read().decode('utf-8'))['log']['entries']
-				if self.nb_requests == -1: self.nb_requests = len(self.rq_list)
+				self.request_list = json.loads(f.read().decode('utf-8'))['log']['entries']
+				if self.nb_requests == -1:
+					n = len(self.request_list)
+					self.nb_requests = n
+					self.nb_digits = len(str(n))
 		else:
 			cprint(f'{har} was not found', RED)
 
@@ -197,38 +214,35 @@ class SessionSim:
 
 	def save_response(self):
 		r = self.response
-		filename = f'{self.code}_{self.method}'
-		full_path = f'{self.wd}/{self.folder}/{self.index}_{filename}'
+		method = self.request['method']
+		filename = f'{self.code}_{method}'
+		index = (self.nb_digits - len(str(self.index)))*'0'+str(self.index)
+		full_path = f'{self.wd}/{self.folder}/{index}_{filename}'
 		print(f'writing to {full_path}...', end='')
 
-		# self.response.print_all_attrib()
-		# exit(0)
+		headers = {}
+		for key, value in r.headers.items():
+			headers[key] = value
+		saved_response = {
+			"_content": str(r._content),
+			"_content_consumed": str(r._content_consumed),
+			"_next": str(r._next),
+			"status_code": str(r.status_code),
+			"headers": headers,
+			"url": str(r.url),
+			"encoding": str(r.encoding),
+			"history": str(r.history),
+			"reason": str(r.reason),
+			"elapsed": str(r.elapsed)
+		}
 
-		# r = self.response
-		# headers = {}
-		# for key, value in r.headers.items():
-		# 	headers[key] = value
-		# saved_response = {
-		# 	"_content": r._content,
-		# 	"_content_consumed": r._content_consumed,
-		# 	"_next": r._next,
-		# 	"status_code": r.status_code,
-		# 	"headers": headers,
-		# 	"url": r.url,
-		# 	"encoding": r.encoding,
-		# 	"history": r.history,
-		# 	"reason": r.reason,
-		# 	"elapsed": str(r.elapsed)
-		# }
-
-		# with open(full_path, 'wb+') as f:
-		# 	f.write(json.dumps(saved_response))
+		with open(full_path, 'w+') as f:
+			f.write(json.dumps(saved_response, indent=3))
 		print(' done')
-		
 
 	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, website='', wd=None):
 		# currently used headers throughout a simulation
-		self.headers = headers
+		self.request['headers'] = headers
 		# manages the cookies of the session
 		self.cookie_manager = CookieManager(cookies)
 		# saves requests' responses that sent back ressources
@@ -240,123 +254,193 @@ class SessionSim:
 		# working directory
 		self.wd = os.getcwd() if wd == None else wd
 
+	def build_json_request(self):
+		url = self.request['url']
+		headers = self.request['headers']
+		cookies = self.request['cookies']
+		params = har_to_json(self.request['queryString'])
+		self.json_request = {
+			"code": "",
+			"args": {
+				"url": url,
+				"headers": headers,
+				"cookies": cookies,
+				"params": params
+			}
+		}
+		return url, headers, cookies, params
+
 	def create_request(self):
-		def custom_request():
-			if self.rq['method'] == 'POST':
-				if type(self.rq['postData']) is dict:
-					self.response = requests.request('POST', self.rq['url'], headers=self.headers, params=har_to_json(self.rq['queryString']), json=self.rq['postData'], allow_redirects=False)
+		def prepared_request():
+			if self.request['method'] == 'POST':
+				url, headers, cookies, params = self.build_json_request()
+				# if type(self.request['postData']) is dict:
+				data = self.request['postData']['text']
+				self.json_request['args']['data'] = data
+				is_json = False
+				if 'content-type' in self.har_request['headers']: if_json = self.har_request['headers']['content-type'] == 'application/json'
+				elif 'mimeType' in self.har_request['postData']: if_json = self.har_request['postData']['mimeType'] == 'application/json'
+				else: cprint('could not determine type of postData, considers it is text (you can access the requests.request arguments in self.json_request[\'args\'])', RED)
+				if is_json:
+					self.response = requests.request('POST', url, headers=headers, cookies=cookies, params=params, json=data, allow_redirects=False)
+					self.json_request['code'] = f'requests.request(\'POST\', url, headers=headers, cookies=cookies, params=params, json=data, allow_redirects=False)'
 				else:
-					self.response = requests.request('POST', self.rq['url'], headers=self.headers, params=har_to_json(self.rq['queryString']), data=self.rq['postData'], allow_redirects=False)
+					self.response = requests.request('POST', url, headers=headers, cookies=cookies, params=params, data=data, allow_redirects=False)
+					self.json_request['code'] = f'requests.request(\'POST\', url, headers=headers, cookies=cookies, params=params, data=data, allow_redirects=False)'
 			else:
-
-				# if self.previous_response != None:
-				# 	self.previous_response.print_all_attrib()
-				# 	if self.previous_response.content != b'' and self.previous_response.content.startswith(b'https://accounts.zalando.com/'):
-				# 		self.rq['url'] = self.previous_response['content']['text']
-				# 	# if 'redirectURL' in self.previous_response:
-				# 		# self.rq['url'] = 'https://accounts.zalando.com'+self.previous_response['redirectURL']
-
-				self.response = requests.request('GET', self.rq['url'], headers=self.headers, params=har_to_json(self.rq['queryString']), allow_redirects=False)
+				if self.previous_response != None:
+				 	# check for redirections
+					if self.previous_response.content != b'' and self.previous_response.content.startswith(b'https://accounts.zalando.com/'):
+						cprint('following url in previous response content', YELLOW)
+						self.request['url'] = self.previous_response['content']['text']
+					if 'redirectURL' in self.previous_response:
+						cprint('following redirectURL in previous response', YELLOW)
+						self.request['url'] = 'https://accounts.zalando.com'+self.previous_response['redirectURL']
+					if 'location' in self.previous_response.headers:
+						cprint('following location in previous response headers', YELLOW)
+						self.request['url'] = self.previous_response.headers['location']
+					# keep track of referer only if previous response was not a redirection ?
+					if self.previous_response.status_code < 300 and self.previous_response.status_code >= 400:
+						self.request['headers']['Referer'] = self.previous_request['url']
+				url, headers, cookies, params = self.build_json_request()
+				self.response = requests.request('GET', url, headers=headers, cookies=cookies, params=params, allow_redirects=False)
+				self.json_request['code'] = f'requests.request(\'GET\', url, headers=headers, cookies=cookies, params=params, allow_redirects=False)'
 			return CustomResponse(self.response)
-		return custom_request
+		return prepared_request
 
 	def report_error(self):
-		
-		cprint(f'({self.index}) {self.code} | {self.method} | {self.url}\n', RED)
+		method, url = self.request['method'], self.request['url']
+		cprint(f'({self.index}) {self.code} | {method} | {url}\n', RED)
 		# cprint('request headers were:\n', RED)
-		# print(json.dumps(self.headers, indent=3))
+		# print(json.dumps(self.request['headers'], indent=3))
 
 	def response_ok(self):
-		cprint(f'({self.index}) {self.code} | {self.method} | {self.url}\n', GREEN)
+		method, url = self.request['method'], self.request['url']
+		cprint(f'({self.index}) {self.code} | {method} | {url}\n', GREEN)
 		if self.save_responses:
 			self.save_response()
 
 	def response_client_error(self):
 		self.report_error()
 
-	def response_server_error(self, custom_request, max_retries):
+	def response_server_error(self, prepared_request, max_retries):
 		k = 0
 		# retry
 		while self.response.status_code >= 500 and k < max_retries:
 			time.sleep(0.5)
-			self.response = custom_request()
+			self.response = prepared_request()
 			self.code = str(self.response.status_code)+'_'+requests.status_codes._codes[self.response.status_code][0]
 			k += 1
 		# success
 		if self.response.status_code < 400:
 			response_ok()
 		# failed
-		elif self.response.status_code >= 500:
+		elif self.response.status_code >= 400:
 			self.report_error()
 		# request was initially good
 		else:
-			cprint('??? impossible case reached\n', RED)
+			cprint(f'??? impossible case reached, status code was {self.code}\n', RED)
 
 	def make_request_from_HAR(self, max_retries=3):
 		# create and send the request
-		custom_request = self.create_request()
-		self.response = custom_request()
-		self.code = str(self.response.status_code)+'_'+requests.status_codes._codes[self.response.status_code][0]
+		prepared_request = self.create_request()
+		self.response = prepared_request()
 		# only consider first response
-		if self.response.history != []: self.response = self.response.history[0]
+		# if self.response.history != []:
+		# 	cprint(f'response history non empty ({len(self.response.history)})', YELLOW)
+		# 	for i in range(len(self.response.history)):
+		# 		if 'Set-Cookie' in self.response.history[i].headers: self.cookie_manager.update_cookies(self.response.history[i].headers['Set-Cookie'])
+		# 		if 'set-cookie' in self.response.history[i].headers: self.cookie_manager.update_cookies(self.response.history[i].headers['set-cookie'])
+		# 	self.response = self.response.history[0]
+		self.code = str(self.response.status_code)+'_'+requests.status_codes._codes[self.response.status_code][0]
 		# good
 		if self.response.status_code < 400:
 			self.response_ok()
 		# server error
 		elif self.response.status_code >= 500:
-			self.response_server_error(custom_request, max_retries)
+			self.response_server_error(prepared_request, max_retries)
 		# client error
 		else:
 			self.response_client_error()
 
+	def get_required_cookies(self):
+		self.request['headers']['Cookie'] = ''
+		self.request['cookies'] = {}
+		if self.cookie_manager.cookies == {}: return
+		for cookie in self.har_request['cookies']:
+			key = cookie['name']
+			if key in self.cookie_manager.cookies_keys:
+				value = self.cookie_manager.get_cookie(key)
+				if value != None:
+					self.request['headers']['Cookie'] += f'{key}={value}; '
+					self.request['cookies'][key] = value
+				else:
+					cprint('missing cookie : '+key, RED)
+			else:
+				cprint('unknown cookie : '+key, RED)
+		self.request['headers']['Cookie'].strip()
+		if self.request['headers']['Cookie'] != '': self.request['headers']['Cookie'] = self.request['headers']['Cookie'][:-2]
+		# self.request['headers']['Cookie'] = self.cookie_manager.get_cookies(as_str=True)
+		# self.request['cookies'] = self.cookie_manager.get_cookies()
+
 	def run(self):
-		self.method = self.rq['method']
-		self.url = self.rq['url'].strip()
-		# build headers
-		for key, value in har_to_json(self.rq['headers']).items():
-			self.headers[key if key[0] != ':' else key[1:]] = value
-		if self.cookie_manager.cookies != {}:
-			self.headers['Cookie'] = self.cookie_manager.get_cookies(as_str=True)
+		# format headers
+		self.request['headers'] = {}
+		for key, value in har_to_json(self.har_request['headers']).items():
+			self.request['headers'][key if key[0] != ':' else key[1:]] = value
+		# get cookies
+		self.get_required_cookies()
 		# make request
 		self.critical_function(self.index, self, before=True)
 		self.make_request_from_HAR()
-		self.critical_function(self.index, self, before=False)
 		# update cookies
 		if 'Set-Cookie' in self.response.headers: self.cookie_manager.update_cookies(self.response.headers['Set-Cookie'])
+		if 'set-cookie' in self.response.headers: self.cookie_manager.update_cookies(self.response.headers['set-cookie'])
+		self.critical_function(self.index, self, before=False)
 		time.sleep(0.5)
 
-	def sim(self, index):
+	def sim(self, index, prompt=False):
 		# init
+		print('-'*shutil.get_terminal_size().columns)
 		self.critical_function_check()
-		self.folder = os.path.splitext(self.har)[0]+'_single'
+		self.folder = os.path.splitext(self.har_filename)[0]+'_single'
 		self.manage_folder(True)
-		if self.rq_list == []:
+		# load request from har file
+		if self.request_list == []:
 			cprint(f'sim({index}): request list empty', RED)
 			return
 		if self.nb_requests != -1 and index < self.nb_requests:
-			self.rq = self.rq_list[index]['request']
+			self.har_request = self.request_list[index]['request']
+			self.request = copy.copy(self.har_request)
 		else:
 			cprint(f'sim({index}): out of range', RED)
 			return
 		self.index = index
+		# run the request
 		self.run()
+		self.previous_response = self.response
+		self.previous_har_request = self.har_request
+		self.previous_request = self.request
+		if prompt: input()
+		print('-'*shutil.get_terminal_size().columns)
 
-	def run_sim(self, har):
+	def run_sim(self, har, indices=[]):
 		# init
 		self.load_har(har)
 		self.critical_function_check()
-		# run sim
 		self.folder = os.path.splitext(har)[0]+'_sim'
 		self.manage_folder()
 		self.index = 0
-		self.previous_response = None
 		while self.index < self.nb_requests:
-			self.rq = self.rq_list[self.index]['request']
+			print('-'*shutil.get_terminal_size().columns)
+			self.har_request = self.request_list[self.index]['request']
+			self.request = copy.copy(self.har_request)
 			self.run()
 			self.index += 1
 			self.previous_response = self.response
-		# return last response
-		return self.response
+			self.previous_har_request = self.har_request
+			self.previous_request = self.request
+			print('-'*shutil.get_terminal_size().columns)
 
 	def print_cookies(self):
 		self.cookie_manager.print_cookies()
