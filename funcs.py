@@ -93,11 +93,13 @@ def get_next_key(string, keys):
 def decode_url(url):
 	return urllib.parse.unquote(url)
 
-def code_to_str(code):
+def code_to_txt(code):
 	return code.replace('	', '\\t').replace('''
 ''', '\\n')
 
-def str_to_code(code):
+def txt_to_code(code):
+	code.replace('\\\\t', '\\t')
+	code.replace('\\\\n', '\\n')
 	return code.replace('\\t', '	').replace('\\n', '''
 ''')
 

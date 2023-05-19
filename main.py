@@ -32,6 +32,8 @@ def zalando_function(i, session_sim, before=True):
 	else:
 		match i:
 			case 0:
+				# base_url, params = deconstruct_get_url(session_sim.response.headers['location'])
+				# session_sim.mem['state'] = params['state']
 				pass
 			case 3:
 				session_sim.prepared_request['headers']['x-flow-id'] = json.loads(decode_url(Selector(session_sim.response.content.decode('utf-8')).xpath('/html/body/div[1]/@data-render-headers').get()))['x-flow-id']
@@ -52,7 +54,7 @@ session_sim.sim(1)
 session_sim.sim(2) # A FIX / IMPROVE ----------------- PROBLEME DE REDIRECTION? ----------------- A FIX / IMPROVE
 session_sim.sim(3)
 session_sim.sim(9)
-session_sim.sim(10)
+# session_sim.sim(10) # login schema
 session_sim.sim(11)
 print_json(session_sim.json_request)
 

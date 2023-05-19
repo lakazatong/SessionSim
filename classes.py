@@ -1,5 +1,6 @@
 import requests, copy, itertools, shutil
 from funcs import *
+from bs4 import BeautifulSoup
 
 class CookieManager:
 	# parses : response.headers['Set-Cookie'] <class 'str'>
@@ -181,12 +182,17 @@ status codes
 
 class SessionSim:
 
-	# list of har formated requests to simulate
+	# copy of the current har request in the har file
 	request = {}
+	# list of har formated requests to simulate
 	request_list = []
 	nb_requests = -1
+	# indent of saved json formatted responses
 	saved_responses_indent = 3
 	previous_response = None
+
+	# use this to cache information during the session
+	mem = {}
 
 	def load_har(self, har):
 		self.har_filename = har
@@ -224,7 +230,7 @@ class SessionSim:
 		for key, value in r.headers.items():
 			headers[key] = value
 		saved_response = {
-			"_content": str(r._content),
+			# "_content": r._content.decode('utf-8'),
 			"_content_consumed": str(r._content_consumed),
 			"_next": str(r._next),
 			"status_code": str(r.status_code),
@@ -237,7 +243,23 @@ class SessionSim:
 		}
 
 		with open(full_path, 'w+') as f:
-			f.write(json.dumps(saved_response, indent=3))
+			f.write(json.dumps(saved_response, indent=self.saved_responses_indent))
+		if r._content != b'':
+			# ignore the content-encoding and always go with utf-8 for simplicity
+			content = r._content.decode('utf-8')
+			with open(full_path+'_content', 'w+') as f:
+				# f.write(json.dumps(json.loads(r._content.decode('utf-8')), indent=self.saved_responses_indent))
+				if 'Content-Type' in headers:
+					if 'text/plain' in headers['Content-Type']:
+						f.write(content)
+					elif 'text/html' in headers['Content-Type']:
+						f.write(BeautifulSoup(content, 'html.parser').prettify())
+					elif 'application/json' in headers['Content-Type']:
+						f.write(json.dumps(json.loads(content), indent=self.saved_responses_indent))
+					elif 'application/x-www-form-urlencoded' in headers['Content-Type']:
+						f.write(decode_url(content))
+				else:
+					f.write(r._content.decode('utf-8'), indent=self.saved_responses_indent)
 		print(' done')
 
 	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, website='', wd=None):
