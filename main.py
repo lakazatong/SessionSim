@@ -21,9 +21,10 @@ def zalando_function(i, session_sim, before=True):
 			# 	url = build_get_url(base_url, params)
 			# 	session_sim.request['url'] = url
 			case 9:
-				session_sim.request['headers']['x-csrf-token'] = session_sim.cookie_manager.get_cookie('csrf-token')
+				session_sim.prepared_request['headers']['x-csrf-token'] = session_sim.cookie_manager.get_cookie('csrf-token')
 			case 11:
-				print_json(session_sim.json_request)
+				print_json(json.loads(session_sim.prepared_request['data']))
+				print_json(session_sim.prepared_request)
 				exit(0)
 			case _:
 				pass
@@ -33,7 +34,7 @@ def zalando_function(i, session_sim, before=True):
 			case 0:
 				pass
 			case 3:
-				session_sim.request['headers']['x-flow-id'] = json.loads(decode_url(Selector(session_sim.response.content.decode('utf-8')).xpath('/html/body/div[1]/@data-render-headers').get()))['x-flow-id']
+				session_sim.prepared_request['headers']['x-flow-id'] = json.loads(decode_url(Selector(session_sim.response.content.decode('utf-8')).xpath('/html/body/div[1]/@data-render-headers').get()))['x-flow-id']
 				pass
 			case _:
 				pass

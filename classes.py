@@ -265,7 +265,7 @@ class SessionSim:
 			data_type = self.har_request['postData']['mimeType']
 		else:
 			cprint(f'could not determine type of postData, setting it to "{data_type}" by default\
-				(a json representation of the request sent is accessible at self.json_request)', RED)
+				(the prepared request can be modified and is accessible at self.prepared_request)', RED)
 		data = self.request['postData']['text']
 		return data_type, data
 
@@ -295,27 +295,26 @@ class SessionSim:
 		elif method == 'GET':
 			self.prepare_get_request()
 		else:
-			cprint(f'does not support {method} method, set it to GET request', RED)
+			cprint(f'{method} method not supported, set it to "GET" request by default\
+				(the prepared request can be modified and is accessible at self.prepared_request)', RED)
 			method = 'GET'
-		# json representation of the request for easy debugging
+		# json representation of the request,
 		url = self.request['url']
 		headers = self.request['headers']
 		cookies = self.request['cookies']
 		params = har_to_json(self.request['queryString'])
-		self.json_request = {
-			"code": "requests.request('GET', url, headers=headers, cookies=cookies, params=params, data=data, allow_redirects=False)",
-			"args": {
-				"url": url,
-				"headers": headers,
-				"cookies": cookies,
-				"params": params,
-				"data_type": data_type,
-				"data": data
-			}
+		self.prepared_request = {
+			"method": method,
+			"url": url,
+			"headers": headers,
+			"cookies": cookies,
+			"params": params,
+			"data_type": data_type,
+			"data": data
 		}
-		def prepared_request():
-			return CustomResponse(requests.request(method, url, headers=headers, cookies=cookies, params=params, data=data, allow_redirects=False))
-		return prepared_request
+		def send_request():
+			return CustomResponse(requests.request(self.prepared_request['method'], self.prepared_request['url'], headers=self.prepared_request['headers'], cookies=self.prepared_request['cookies'], params=self.prepared_request['params'], data=self.prepared_request['data'], allow_redirects=False))
+		self.send_request = send_request
 
 	def report_error(self):
 		method, url = self.request['method'], self.request['url']
@@ -332,12 +331,12 @@ class SessionSim:
 	def response_client_error(self):
 		self.report_error()
 
-	def response_server_error(self, prepared_request, max_retries):
+	def response_server_error(self, max_retries):
 		k = 0
 		# retry
 		while self.response.status_code >= 500 and k < max_retries:
 			time.sleep(0.5)
-			self.response = prepared_request()
+			self.response = self.send_request()
 			self.code = str(self.response.status_code)+'_'+requests.status_codes._codes[self.response.status_code][0]
 			k += 1
 		# success
@@ -352,9 +351,9 @@ class SessionSim:
 
 	def make_request_from_HAR(self, max_retries=3):
 		# create and send the request
-		prepared_request = self.prepare_request()
+		self.prepare_request()
 		self.critical_function(self.index, self, before=True)
-		self.response = prepared_request()
+		self.response = self.send_request()
 		# only consider first response
 		# if self.response.history != []:
 		# 	cprint(f'response history non empty ({len(self.response.history)})', YELLOW)
@@ -368,7 +367,7 @@ class SessionSim:
 			self.response_ok()
 		# server error
 		elif self.response.status_code >= 500:
-			self.response_server_error(prepared_request, max_retries)
+			self.response_server_error(max_retries)
 		# client error
 		else:
 			self.response_client_error()
