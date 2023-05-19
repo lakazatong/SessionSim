@@ -107,7 +107,45 @@ def get_from_link(original_link, key):
 	if index == -1:	return None
 	end = link[index+len(key):].find('&')
 
-# ------------------- old -------------------
+def build_get_url(base_url, params):
+	url = base_url
+	L = list(params.items())
+	i = 0
+	if i < len(L):
+		url += f'?{L[i][0]}={L[i][1]}'
+		i += 1
+	else:
+		return url
+	while i < len(L):
+		url += f'&{L[i][0]}={L[i][1]}'
+		i += 1
+	return url
+
+def deconstruct_get_url(get_url):
+	i = get_url.find('&')
+	params = {}
+	if i == -1:
+		return get_url, params
+	base_url = get_url[:i]
+	get_url = get_url[i+1:]
+	j = base_url.find('?')
+	if j != -1:
+		base_url_cpy = base_url
+		base_url = base_url[:j]
+		base_url_cpy = base_url_cpy[j+1:]
+		j = base_url_cpy.find('=')
+		params[base_url_cpy[:j]] = base_url_cpy[j+1:]
+	while get_url != '':
+		i = get_url.find('=')
+		key = get_url[:i]
+		get_url = get_url[i+1:]
+		i = get_url.find('&')
+		if i == -1: i = len(get_url)
+		value = get_url[:i]
+		get_url = get_url[i+1:]
+		params[key] = value
+	return base_url, params
+
 
 def txt_headers_to_json_headers(txt, filters=[]):
 	headers = {}
@@ -126,6 +164,8 @@ def txt_headers_to_json_headers(txt, filters=[]):
 			left = e[:semi_colon_index].strip()
 			headers[left] = e[semi_colon_index+1:].strip()
 	return method, url, http, headers
+
+# ------------------- old -------------------
 
 def make_request_from_domain_and_headers(domain, headers, print_request=False, filters=[]):
 	method, url, http, headers = txt_headers_to_json_headers(headers, filters=filters)
