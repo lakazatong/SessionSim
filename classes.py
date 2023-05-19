@@ -1,6 +1,5 @@
 import requests, copy, itertools, shutil
 from funcs import *
-from bs4 import BeautifulSoup
 
 class CookieManager:
 	# parses : response.headers['Set-Cookie'] <class 'str'>
@@ -253,13 +252,13 @@ class SessionSim:
 					if 'text/plain' in headers['Content-Type']:
 						f.write(content)
 					elif 'text/html' in headers['Content-Type']:
-						f.write(BeautifulSoup(content, 'html.parser').prettify())
+						f.write(BeautifulSoup(content, 'html.parser').prettify(indent_width=self.saved_responses_indent))
 					elif 'application/json' in headers['Content-Type']:
 						f.write(json.dumps(json.loads(content), indent=self.saved_responses_indent))
 					elif 'application/x-www-form-urlencoded' in headers['Content-Type']:
 						f.write(decode_url(content))
 				else:
-					f.write(r._content.decode('utf-8'), indent=self.saved_responses_indent)
+					f.write(content)
 		print(' done')
 
 	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, website='', wd=None):

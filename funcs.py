@@ -1,6 +1,7 @@
-import os, time, inspect, json, urllib.parse
+import os, time, inspect, json, urllib.parse, re
 from pprint import pprint
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 BLACK, RED, GREEN, YELLOW, BLUE, PURPLE, CYAN, WHITE = 30, 31, 32, 33, 34, 35, 36, 37
 def cprint(string, color_code=30, end='\n'):
@@ -93,6 +94,9 @@ def get_next_key(string, keys):
 def decode_url(url):
 	return urllib.parse.unquote(url)
 
+def encode_url(url):
+	return urllib.parse.quote(url)
+
 def code_to_txt(code):
 	return code.replace('	', '\\t').replace('''
 ''', '\\n')
@@ -166,6 +170,27 @@ def txt_headers_to_json_headers(txt, filters=[]):
 			left = e[:semi_colon_index].strip()
 			headers[left] = e[semi_colon_index+1:].strip()
 	return method, url, http, headers
+
+
+def transfer_json_data(source, dest, keys=[], key_action=None, value_action=None):
+	if key_action == None: key_action = lambda key: key
+	if value_action == None: value_action = lambda value: value
+	if keys == []:
+		for key, value in source.items():
+			dest[ key_action(key) ] = value_action(value)
+	else:
+		for key, value in source.items():
+			if key in keys:
+				dest[ key_action(key) ] = value_action(value)
+
+# source : https://stackoverflow.com/a/15513483
+orig_prettify = BeautifulSoup.prettify
+r = re.compile(r'^(\s*)', re.MULTILINE)
+def prettify(self, encoding=None, formatter="minimal", indent_width=4):
+	return r.sub(r'\1' * indent_width, orig_prettify(self, encoding, formatter))
+BeautifulSoup.prettify = prettify
+
+
 
 # ------------------- old -------------------
 

@@ -11,32 +11,34 @@ def zalando_function(i, session_sim, before=True):
 	# runs before the request is sent
 	if before:
 		match i:
-			case 0:
-				pass
-			# case 1:
-			# 	base_url, params = deconstruct_get_url(session_sim.request_list[1]['request']['url'])
-			# 	params.pop('nonce')
-			# 	params.pop('request_id')
-			# 	params.pop('state')
-			# 	url = build_get_url(base_url, params)
-			# 	session_sim.request['url'] = url
 			case 9:
 				session_sim.prepared_request['headers']['x-csrf-token'] = session_sim.cookie_manager.get_cookie('csrf-token')
 			case 11:
-				print_json(json.loads(session_sim.prepared_request['data']))
+				# print_json(session_sim.prepared_request)
+				data = json.loads(session_sim.prepared_request['data'])
+				transfer_json_data(session_sim.mem['get_url_data'], data['request'])
+				session_sim.prepared_request['data'] = json.dumps(data)
+				session_sim.prepared_request['headers']['Content-Length'] = str(len(session_sim.prepared_request['data']))
+				session_sim.prepared_request['headers']['Referer'] = build_get_url('https://accounts.zalando.com/authenticate', session_sim.mem['get_url_data'])
 				print_json(session_sim.prepared_request)
-				exit(0)
 			case _:
 				pass
 	# runs after the request is sent
 	else:
 		match i:
-			case 0:
-				# base_url, params = deconstruct_get_url(session_sim.response.headers['location'])
-				# session_sim.mem['state'] = params['state']
-				pass
 			case 3:
-				session_sim.prepared_request['headers']['x-flow-id'] = json.loads(decode_url(Selector(session_sim.response.content.decode('utf-8')).xpath('/html/body/div[1]/@data-render-headers').get()))['x-flow-id']
+				sel = Selector(session_sim.response.content.decode('utf-8'))
+				data_props = json.loads(decode_url(sel.xpath('/html/body/div[1]/@data-props').get()))
+				# data_translations = json.loads(decode_url(sel.xpath('/html/body/div[1]/@data-translations').get()))
+				data_render_headers = json.loads(decode_url(sel.xpath('/html/body/div[1]/@data-render-headers').get()))
+				# print_json(data_props)
+				# print_json(data_translations)
+				# print_json(data_render_headers)
+				session_sim.prepared_request['headers']['x-flow-id'] = data_render_headers['x-flow-id']
+
+				session_sim.mem['get_url_data'] = {}
+				transfer_json_data(data_props['request'], session_sim.mem['get_url_data'], value_action=lambda value: value[0])
+				session_sim.mem['get_url_data']['request_id'] = data_props['compromisedCheckPayload']['request_id'][0]
 				pass
 			case _:
 				pass
@@ -56,7 +58,6 @@ session_sim.sim(3)
 session_sim.sim(9)
 # session_sim.sim(10) # login schema
 session_sim.sim(11)
-print_json(session_sim.json_request)
 
 # session_sim.cookie_manager.print_cookies()
 
