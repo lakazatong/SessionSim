@@ -20,7 +20,10 @@ def zalando_function(i, session_sim, before=True):
 			case 3:
 				session_sim.prepared_request['params'] = {}
 				session_sim.prepared_request['url'] = 'https://accounts.zalando.com'+session_sim.previous_response.headers['location']
-			
+				
+				base_url, params = deconstruct_get_url(session_sim.previous_response.headers['location'])
+				session_sim.mem['get_url_data'] = {}
+				transfer_json_data(params, session_sim.mem['get_url_data'], force=False)
 			case 4:
 				session_sim.prepared_request['url'] = session_sim.mem['bullshit_url']
 			case 5:
@@ -54,10 +57,6 @@ def zalando_function(i, session_sim, before=True):
 	# runs after the request is sent
 	else:
 		match i:
-			case 2:
-				base_url, params = deconstruct_get_url(session_sim.response.headers['location'])
-				session_sim.mem['get_url_data'] = {}
-				transfer_json_data(params, session_sim.mem['get_url_data'], force=True)
 			case 3:
 				sel = Selector(session_sim.response.content.decode('utf-8'))
 				# data_props = json.loads(decode_url(sel.xpath('/html/body/div[1]/@data-props').get()))
@@ -88,17 +87,16 @@ session_sim.sim(1) # update cookies (login page redirection)
 session_sim.sim(2) # new cookies (login page redirection)
 session_sim.sim(3) # new cookies + x-flow-id (login page response)
 
+# session_sim.sim(4) # (bullshit_url)
+# session_sim.sim(5) # (bullshit_url)
+# session_sim.sim(6) # (bullshit_url)
+
+# session_sim.sim(7) # update cookie (pixel_url)
+
+# session_sim.sim(8) # update cookie (bullshit_url)
+# session_sim.sim(9) # update cookie (bullshit_url)
+
 session_sim.sim(10) # new cookie (credentials verification)
-
-session_sim.sim(4) # (bullshit_url)
-session_sim.sim(5) # (bullshit_url)
-session_sim.sim(6) # (bullshit_url)
-
-session_sim.sim(7) # update cookie (pixel_url)
-
-session_sim.sim(8) # update cookie (bullshit_url)
-session_sim.sim(9) # update cookie (bullshit_url)
-
 session_sim.sim(11) # update cookie (login schema)
 
 session_sim.sim(12) # new cookies (login) ---------- :c ----------

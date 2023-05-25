@@ -323,8 +323,8 @@ class SessionSim:
 		# 		self.request['url'] = self.base_url+self.previous_response.headers['location']
 
 		# keep track of referer only if previous response was not a redirection ?
-		# if self.previous_response.status_code < 300 and self.previous_response.status_code >= 400:
-		# 	self.request['headers']['Referer'] = self.previous_request['url']
+		if self.previous_response.status_code < 300 and self.previous_response.status_code >= 400:
+			self.request['headers']['Referer'] = self.previous_request['url']
 
 	def prepare_request(self):
 		data_type, data = "", ""
