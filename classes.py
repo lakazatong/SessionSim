@@ -164,7 +164,7 @@ class CustomResponse(requests.Response):
 	def items(self):
 		for attr, value in self.__dict__.items():
 			yield attr, value
-	def print_all_attrib(self):
+	def print_all_attributes(self):
 		for attr, value in self.items():
 			print(f'{attr} = {value}\n\n')
 
@@ -189,6 +189,7 @@ class SessionSim:
 	# indent of saved json formatted responses
 	saved_responses_indent = 3
 	previous_response = None
+	allow_redirects = False
 
 	# use this to cache information during the session
 	mem = {}
@@ -261,7 +262,7 @@ class SessionSim:
 					f.write(content)
 		print(' done')
 
-	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, website='', wd=None):
+	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, wd=None):
 		# currently used headers throughout a simulation
 		self.request['headers'] = headers
 		# manages the cookies of the session
@@ -270,8 +271,6 @@ class SessionSim:
 		self.save_responses = save_responses
 		# function for critical cases to be handled manually
 		self.critical_function = critical_function
-		# website to simulate login
-		self.website = website
 		# working directory
 		self.wd = os.getcwd() if wd == None else wd
 
@@ -294,22 +293,28 @@ class SessionSim:
 		if self.previous_response == None: return
 	 	
 	 	# check for redirections
-		if self.previous_response.content != b'' and self.previous_response.content.startswith(b'https://accounts.zalando.com/'):
-			cprint('following url in previous response content', YELLOW)
-			self.request['url'] = self.previous_response['content']['text']
-		if 'redirectURL' in self.previous_response:
-			cprint('following redirectURL in previous response', YELLOW)
-			self.request['url'] = 'https://accounts.zalando.com'+self.previous_response['redirectURL']
-		if 'location' in self.previous_response.headers:
-			cprint('following location in previous response headers', YELLOW)
-			self.request['url'] = self.previous_response.headers['location']
-		
+		# if self.previous_response.content != b'' and self.previous_response.content.startswith(bytes(self.base_url)):
+		# 	cprint('following url in previous response content', YELLOW)
+		# 	self.request['url'] = self.previous_response['content']['text']
+		# if 'redirectURL' in self.previous_response:
+		# 	cprint('following redirectURL in previous response', YELLOW)
+		# 	if self.previous_response['redirectURL'].startswith(self.base_url):
+		# 		self.request['url'] = self.previous_response['redirectURL']
+		# 	else:
+		# 		self.request['url'] = self.base_url+self.previous_response['redirectURL']
+		# if 'location' in self.previous_response.headers:
+		# 	cprint('following location in previous response headers', YELLOW)
+		# 	if self.previous_response.headers['location'].startswith(self.base_url):
+		# 		self.request['url'] = self.previous_response.headers['location']
+		# 	else:
+		# 		self.request['url'] = self.base_url+self.previous_response.headers['location']
+
 		# keep track of referer only if previous response was not a redirection ?
-		if self.previous_response.status_code < 300 and self.previous_response.status_code >= 400:
-			self.request['headers']['Referer'] = self.previous_request['url']
+		# if self.previous_response.status_code < 300 and self.previous_response.status_code >= 400:
+		# 	self.request['headers']['Referer'] = self.previous_request['url']
 
 	def prepare_request(self):
-		data_type, data = None, None
+		data_type, data = "", ""
 		method = self.request['method']
 		if method == 'POST':
 			data_type, data = self.prepare_post_request()
@@ -319,7 +324,7 @@ class SessionSim:
 			cprint(f'{method} method not supported, set it to "GET" request by default\
 				(the prepared request can be modified and is accessible at self.prepared_request)', RED)
 			method = 'GET'
-		# json representation of the request,
+		# json representation of the request that will be made and an be modified
 		url = self.request['url']
 		headers = self.request['headers']
 		cookies = self.request['cookies']
@@ -334,17 +339,17 @@ class SessionSim:
 			"data": data
 		}
 		def send_request():
-			return CustomResponse(requests.request(self.prepared_request['method'], self.prepared_request['url'], headers=self.prepared_request['headers'], cookies=self.prepared_request['cookies'], params=self.prepared_request['params'], data=self.prepared_request['data'], allow_redirects=False))
+			return CustomResponse(requests.request(self.prepared_request['method'], self.prepared_request['url'], headers=self.prepared_request['headers'], cookies=self.prepared_request['cookies'], params=self.prepared_request['params'], data=self.prepared_request['data'], allow_redirects=self.allow_redirects))
 		self.send_request = send_request
 
 	def report_error(self):
-		method, url = self.request['method'], self.request['url']
+		method, url = self.prepared_request['method'], self.prepared_request['url']
 		cprint(f'({self.index}) {self.code} | {method} | {url}\n', RED)
 		# cprint('request headers were:\n', RED)
 		# print(json.dumps(self.request['headers'], indent=3))
 
 	def response_ok(self):
-		method, url = self.request['method'], self.request['url']
+		method, url = self.prepared_request['method'], self.prepared_request['url']
 		cprint(f'({self.index}) {self.code} | {method} | {url}\n', GREEN)
 		if self.save_responses:
 			self.save_response()
@@ -362,7 +367,7 @@ class SessionSim:
 			k += 1
 		# success
 		if self.response.status_code < 400:
-			response_ok()
+			self.response_ok()
 		# failed
 		elif self.response.status_code >= 400:
 			self.report_error()

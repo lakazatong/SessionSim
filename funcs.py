@@ -54,7 +54,7 @@ def print_var(var):
 	pprint(str([k for k, v in callers_local_vars if v is var][0])+' = '+str(var), indent=3)
 	print()
 
-def print_all_attrib(obj):
+def print_all_attributes(obj):
 	for attr, value in obj.__iter__():
 		print(f'{attr} = {value}\n\n')
 
@@ -63,6 +63,8 @@ def print_all_items(obj):
 		print(f'{key} = {value}\n\n')
 
 def print_json(obj, indent=3):
+	if type(obj) is str:
+		obj = json.loads(obj)
 	print(json.dumps(obj, indent=indent))
 
 def convert_to_unix_time(date_string):
@@ -172,12 +174,15 @@ def txt_headers_to_json_headers(txt, filters=[]):
 	return method, url, http, headers
 
 
-def transfer_json_data(source, dest, keys=[], key_action=None, value_action=None):
+def transfer_json_data(source, dest, keys=[], key_action=None, value_action=None, force=False):
 	if key_action == None: key_action = lambda key: key
 	if value_action == None: value_action = lambda value: value
 	if keys == []:
 		for key, value in source.items():
-			dest[ key_action(key) ] = value_action(value)
+			key = key_action(key)
+			value = key_action(value)
+			if key in dest or force:
+				dest[ key_action(key) ] = value_action(value)
 	else:
 		for key, value in source.items():
 			if key in keys:
