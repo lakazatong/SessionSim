@@ -198,6 +198,9 @@ def transfer_json_data(source, dest, keys=[], key_action=None, value_action=None
 				if key in dest and key in keys:
 					dest[ key ] = value_action(value)
 
+def split_path(path):
+	return os.path.split(path)
+
 # source : https://stackoverflow.com/a/15513483
 orig_prettify = BeautifulSoup.prettify
 r = re.compile(r'^(\s*)', re.MULTILINE)

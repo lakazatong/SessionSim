@@ -116,7 +116,7 @@ class CookieManager:
 				old_cookie = copy.copy(self.cookies[cookie_key])
 				transfer_json_data(cookie_params, self.cookies[cookie_key])
 				if self.cookies[cookie_key] != old_cookie:
-					cprint('modified cookie : ' + cookie_key, PURPLE)
+					cprint('updated cookie : ' + cookie_key, PURPLE)
 		print()
 
 	def __init__(self, cookies=''):
@@ -198,8 +198,8 @@ class SessionSim:
 	nb_requests = -1
 	# indent of saved json formatted responses
 	saved_responses_indent = 3
+	
 	previous_response = None
-	allow_redirects = False
 
 	# use this to cache information during the session
 	mem = {}
@@ -272,7 +272,7 @@ class SessionSim:
 					f.write(content)
 		print(' done')
 
-	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, wd=None):
+	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, wd=None, allow_redirects=False, timeout=10):
 		# currently used headers throughout a simulation
 		self.request['headers'] = headers
 		# manages the cookies of the session
@@ -283,6 +283,9 @@ class SessionSim:
 		self.critical_function = critical_function
 		# working directory
 		self.wd = os.getcwd() if wd == None else wd
+
+		self.allow_redirects = allow_redirects
+		self.timeout = timeout
 
 	def prepare_post_request(self):
 		is_json = False
@@ -349,7 +352,7 @@ class SessionSim:
 			"data": data
 		}
 		def send_request():
-			return CustomResponse(requests.request(self.prepared_request['method'], self.prepared_request['url'], headers=self.prepared_request['headers'], cookies=self.prepared_request['cookies'], params=self.prepared_request['params'], data=self.prepared_request['data'], allow_redirects=self.allow_redirects))
+			return CustomResponse(requests.request(self.prepared_request['method'], self.prepared_request['url'], headers=self.prepared_request['headers'], cookies=self.prepared_request['cookies'], params=self.prepared_request['params'], data=self.prepared_request['data'], allow_redirects=self.allow_redirects, timeout=(self.timeout, self.timeout)))
 		self.send_request = send_request
 
 	def report_error(self):
@@ -373,7 +376,7 @@ class SessionSim:
 		while self.response.status_code >= 500 and k < max_retries:
 			time.sleep(0.5)
 			self.response = self.send_request()
-			self.code = str(self.response.status_code)+'_'+requests.status_codes._codes[self.response.status_code][0]
+			self.code = str(self.response.status_code)+' '+requests.status_codes._codes[self.response.status_code][0]
 			k += 1
 		# success
 		if self.response.status_code < 400:
@@ -397,7 +400,7 @@ class SessionSim:
 		# 		if 'Set-Cookie' in self.response.history[i].headers: self.cookie_manager.update_cookies(self.response.history[i].headers['Set-Cookie'])
 		# 		if 'set-cookie' in self.response.history[i].headers: self.cookie_manager.update_cookies(self.response.history[i].headers['set-cookie'])
 		# 	self.response = self.response.history[0]
-		self.code = str(self.response.status_code)+'_'+requests.status_codes._codes[self.response.status_code][0]
+		self.code = str(self.response.status_code)+' '+requests.status_codes._codes[self.response.status_code][0]
 		# good
 		if self.response.status_code < 400:
 			self.response_ok()

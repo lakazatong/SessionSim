@@ -20,10 +20,26 @@ def zalando_function(i, session_sim, before=True):
 			case 3:
 				session_sim.prepared_request['params'] = {}
 				session_sim.prepared_request['url'] = 'https://accounts.zalando.com'+session_sim.previous_response.headers['location']
+			
+			case 4:
+				session_sim.prepared_request['url'] = session_sim.mem['bullshit_url']
+			case 5:
+				session_sim.prepared_request['url'] = session_sim.mem['bullshit_url']
+			case 6:
+				session_sim.prepared_request['url'] = session_sim.mem['bullshit_url']
+			
+			case 7:
+				session_sim.prepared_request['url'] = session_sim.mem['pixel_url']
+			
+			case 8:
+				session_sim.prepared_request['url'] = session_sim.mem['bullshit_url']
 			case 9:
+				session_sim.prepared_request['url'] = session_sim.mem['bullshit_url']
+
+			case 10:
 				session_sim.prepared_request['headers']['x-csrf-token'] = session_sim.mem['csrf-token']
 				session_sim.prepared_request['headers']['x-flow-id'] = session_sim.mem['x-flow-id']
-			case 11:
+			case 12:
 				data = json.loads(session_sim.prepared_request['data'])
 				# transfer_json_data(session_sim.mem['get_url_data'], data['request'], key_action=lambda key:decode_url(key), value_action=lambda value:decode_url(value))
 				transfer_json_data(session_sim.mem['get_url_data'], data['request'])
@@ -53,10 +69,9 @@ def zalando_function(i, session_sim, before=True):
 				# session_sim.prepared_request['headers']['x-flow-id'] = data_render_headers['x-flow-id']
 				session_sim.mem['x-flow-id'] = data_render_headers['x-flow-id']
 				session_sim.mem['csrf-token'] = session_sim.cookie_manager.get_cookie('csrf-token')
-
-				# transfer_json_data(data_props['request'], session_sim.mem['get_url_data'], value_action=lambda value: value[0], force=True)
-				# session_sim.mem['get_url_data']['request_id'] = data_props['compromisedCheckPayload']['request_id'][0]
-				pass
+				url = split_path(sel.xpath('/html/head/script[2]/@src').get())
+				session_sim.mem['pixel_url'] = url[0]+'/pixel_'+url[1]
+				session_sim.mem['bullshit_url'] = 'https://accounts.zalando.com'+sel.xpath('/html/body/script[4]/@src').get()
 			case _:
 				pass
 
@@ -66,20 +81,24 @@ session_sim = SessionSim()
 
 # simulate login
 session_sim.critical_function = zalando_function
-session_sim.load_har('simple.har')
+session_sim.load_har('simple2.har')
 
 session_sim.sim(0) # new cookies (login page)
 session_sim.sim(1) # update cookies (login page redirection)
 session_sim.sim(2) # new cookies (login page redirection)
 session_sim.sim(3) # new cookies + x-flow-id (login page response)
 
-session_sim.sim(4) # (bullshit)
-session_sim.sim(5) # (bullshit)
-session_sim.sim(6) # (bullshit)
-session_sim.sim(7) # (bullshit)
+session_sim.sim(10) # new cookie (credentials verification)
 
-session_sim.sim(8) # update cookie (bullshit)
-session_sim.sim(9) # new cookie (credentials verification)
-session_sim.sim(10) # update cookie (login schema)
+session_sim.sim(4) # (bullshit_url)
+session_sim.sim(5) # (bullshit_url)
+session_sim.sim(6) # (bullshit_url)
 
-session_sim.sim(11) # new cookies (login) ---------- :c ----------
+session_sim.sim(7) # update cookie (pixel_url)
+
+session_sim.sim(8) # update cookie (bullshit_url)
+session_sim.sim(9) # update cookie (bullshit_url)
+
+session_sim.sim(11) # update cookie (login schema)
+
+session_sim.sim(12) # new cookies (login) ---------- :c ----------
