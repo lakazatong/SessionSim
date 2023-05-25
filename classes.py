@@ -110,14 +110,24 @@ class CookieManager:
 			if not cookie_key in self.cookies:
 				cprint('new cookie : ' + cookie_key, PURPLE)
 				self.cookies[cookie_key] = {}
-			# print('updating cookie : ' + cookie_key)
-			for param_key, param_value in cookie_params.items():
-				self.cookies[cookie_key][param_key] = param_value
+				transfer_json_data(cookie_params, self.cookies[cookie_key], force=True)
+			# known cookie, notify if modified
+			else:
+				old_cookie = copy.copy(self.cookies[cookie_key])
+				transfer_json_data(cookie_params, self.cookies[cookie_key])
+				if self.cookies[cookie_key] != old_cookie:
+					cprint('modified cookie : ' + cookie_key, PURPLE)
 		print()
 
 	def __init__(self, cookies=''):
 		if cookies != '':
 			self.update_cookies(cookies)
+
+	def print_cookie(self, key, color=WHITE):
+		if key in self.cookies:
+			cprint(self.cookies[key], color)
+		else:
+			cprit(key+' cookie unknown', RED)
 
 	def print_cookies(self, indent=3):
 		print('CookieManager\'s cookies:')

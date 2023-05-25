@@ -14,22 +14,20 @@ def zalando_function(i, session_sim, before=True):
 			case 1:
 				session_sim.prepared_request['params'] = {}
 				session_sim.prepared_request['url'] = session_sim.previous_response.headers['location']
-				print(session_sim.prepared_request['url'])
 			case 2:
 				session_sim.prepared_request['params'] = {}
 				session_sim.prepared_request['url'] = 'https://accounts.zalando.com'+session_sim.previous_response.headers['location']
-				print(session_sim.prepared_request['url'])
 			case 3:
 				session_sim.prepared_request['params'] = {}
 				session_sim.prepared_request['url'] = 'https://accounts.zalando.com'+session_sim.previous_response.headers['location']
-				print(session_sim.prepared_request['url'])
 			case 9:
 				session_sim.prepared_request['headers']['x-csrf-token'] = session_sim.mem['csrf-token']
 				session_sim.prepared_request['headers']['x-flow-id'] = session_sim.mem['x-flow-id']
 			case 11:
 				data = json.loads(session_sim.prepared_request['data'])
-				transfer_json_data(session_sim.mem['get_url_data'], data['request'], key_action=lambda key:decode_url(key), value_action=lambda value:decode_url(value))
-				session_sim.prepared_request['data'] = json.dumps(data)
+				# transfer_json_data(session_sim.mem['get_url_data'], data['request'], key_action=lambda key:decode_url(key), value_action=lambda value:decode_url(value))
+				transfer_json_data(session_sim.mem['get_url_data'], data['request'])
+				session_sim.prepared_request['data'] = decode_url(json.dumps(data).strip().replace(' ', ''))
 				session_sim.prepared_request['headers']['Content-Length'] = str(len(session_sim.prepared_request['data']))
 				session_sim.prepared_request['headers']['Referer'] = build_get_url('https://accounts.zalando.com/authenticate', session_sim.mem['get_url_data'])
 				session_sim.prepared_request['headers']['x-flow-id'] = session_sim.mem['x-flow-id']
@@ -70,21 +68,18 @@ session_sim = SessionSim()
 session_sim.critical_function = zalando_function
 session_sim.load_har('simple.har')
 
-session_sim.sim(0) # login page
-session_sim.sim(1) # login page redirection
-session_sim.sim(2) # login page redirection
-session_sim.sim(3) # login page response
+session_sim.sim(0) # new cookies (login page)
+session_sim.sim(1) # update cookies (login page redirection)
+session_sim.sim(2) # new cookies (login page redirection)
+session_sim.sim(3) # new cookies + x-flow-id (login page response)
 
-session_sim.sim(4) # bullshit
-session_sim.sim(5) # bullshit
+session_sim.sim(4) # (bullshit)
+session_sim.sim(5) # (bullshit)
+session_sim.sim(6) # (bullshit)
+session_sim.sim(7) # (bullshit)
 
-session_sim.sim(6) # update ak_bmsc cookie
+session_sim.sim(8) # update cookie (bullshit)
+session_sim.sim(9) # new cookie (credentials verification)
+session_sim.sim(10) # update cookie (login schema)
 
-session_sim.sim(7) # bullshit
-
-session_sim.sim(8) # update _abck cookie
-
-session_sim.sim(9) # credentials check
-session_sim.sim(10) # login schema
-
-session_sim.sim(11) # login
+session_sim.sim(11) # new cookies (login) ---------- :c ----------

@@ -177,16 +177,26 @@ def txt_headers_to_json_headers(txt, filters=[]):
 def transfer_json_data(source, dest, keys=[], key_action=None, value_action=None, force=False):
 	if key_action == None: key_action = lambda key: key
 	if value_action == None: value_action = lambda value: value
-	if keys == []:
-		for key, value in source.items():
-			key = key_action(key)
-			value = key_action(value)
-			if key in dest or force:
+	if force:
+		if keys == []:
+			for key, value in source.items():
 				dest[ key_action(key) ] = value_action(value)
+		else:
+			for key, value in source.items():
+				key = key_action(key)
+				if key in keys:
+					dest[ key ] = value_action(value)
 	else:
-		for key, value in source.items():
-			if key in keys:
-				dest[ key_action(key) ] = value_action(value)
+		if keys == []:
+			for key, value in source.items():
+				key = key_action(key)
+				if key in dest:
+					dest[ key ] = key_action(value)
+		else:
+			for key, value in source.items():
+				key = key_action(key)
+				if key in dest and key in keys:
+					dest[ key ] = value_action(value)
 
 # source : https://stackoverflow.com/a/15513483
 orig_prettify = BeautifulSoup.prettify
