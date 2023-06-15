@@ -98,16 +98,16 @@ class CookieManager:
 				continue
 			# else either always_replace, new cookie, session cookie, or expired cookie, then add/replace it
 			if not cookie_key in self.cookies:
-				cprint('new cookie : ' + cookie_key, PURPLE)
+				if self.debug_mode: cprint('new cookie : ' + cookie_key, PURPLE)
 				self.cookies[cookie_key] = {}
 				transfer_json_data(cookie_params, self.cookies[cookie_key], force=True)
 			# known cookie, notify if modified
 			else:
 				old_cookie = copy.copy(self.cookies[cookie_key])
 				transfer_json_data(cookie_params, self.cookies[cookie_key])
-				if self.cookies[cookie_key] != old_cookie:
+				if self.debug_mode and self.cookies[cookie_key] != old_cookie:
 					cprint('updated cookie : ' + cookie_key, PURPLE)
-		print()
+		if self.debug_mode: print()
 
 	def load_cookies_keys(self, full_path):#, folder='', filename=''):
 		if os.path.exists(full_path):
@@ -116,11 +116,13 @@ class CookieManager:
 					if not key in self.cookies_keys:
 						self.cookies_keys.append(key)
 
-	def __init__(self, full_path='', cookies=''):
+	def __init__(self, full_path='', cookies='', debug_mode=True):
 		if full_path != '':
 			self.load_cookies_keys(full_path)
 		if cookies != '':
 			self.update_cookies(cookies)
+		# prints bunch of stuff for debugging
+		self.debug_mode = debug_mode
 
 	def print_cookie(self, key, color=WHITE):
 		if key in self.cookies:
@@ -245,7 +247,7 @@ class SessionSim:
 		filename = f'{self.code}_{method}'
 		index = (self.nb_digits - len(str(self.index)))*'0'+str(self.index)
 		full_path = f'{self.wd}/{self.folder}/{index}_{filename}'
-		print(f'writing to {full_path}...', end='')
+		if self.debug_mode: print(f'writing to {full_path}...', end='')
 
 		headers = {}
 		for key, value in r.headers.items():
