@@ -79,7 +79,7 @@ def accept_function(session_sim, i, har_request, har_response):
 # os.system('clear')
 
 session_sim = SessionSim()
-# session_sim.cookie_manager.load_cookies_keys('cookies_keys.json')
+session_sim.cookie_manager.load_cookies_keys('cookies_keys.json')
 
 # simulate login
 session_sim.critical_function = zalando_function
@@ -105,6 +105,4 @@ session_sim.sim(11) # update cookie (login schema)
 
 # session_sim.sim(12) # new cookies (login) ---------- :c ----------
 
-session_sim.cookie_manager.print_cookies()
-
-# session_sim.cookie_manager.save_cookies_keys('cookies_keys.json')
+session_sim.cookie_manager.save_cookies_keys('cookies_keys.json')

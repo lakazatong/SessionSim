@@ -10,7 +10,6 @@ except:
 try:
 	from parsel import Selector
 except:
-	import os
 	os.system('pip install parsel')
 	from parsel import Selector
 

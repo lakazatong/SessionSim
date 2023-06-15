@@ -1,4 +1,9 @@
-import requests, copy, itertools, shutil
+import requests, copy, itertools, shutil, zlib
+try:
+	import brotli
+except:
+	os.system('pip install brotli')
+	import brotli
 from funcs import *
 
 class CookieManager:
@@ -281,20 +286,49 @@ class SessionSim:
 		with open(full_path, 'w+') as f:
 			f.write(json.dumps(saved_response, indent=self.saved_responses_indent))
 		if r._content != b'':
-			# ignore the content-encoding and always go with utf-8 for simplicity
-			content = r._content.decode('utf-8', 'ignore')
-			with open(full_path+'_content', 'w+') as f:
-				# f.write(json.dumps(json.loads(r._content.decode('utf-8')), indent=self.saved_responses_indent))
-				if 'Content-Type' in headers:
-					if 'text/plain' in headers['Content-Type']:
+			
+			# decode
+
+			content_encoding = None
+			content_encoding_in_headers = True
+			if 'Content-Encoding' in headers: content_encoding = 'Content-Encoding'
+			elif 'content-encoding' in headers: content_encoding = 'content-encoding'
+			else: content_encoding_in_headers = False
+
+			if content_encoding in headers:
+				if 'gzip' in headers[content_encoding] or 'compress' in headers[content_encoding] or 'deflate' in headers[content_encoding]:
+					content = zlib.decompress(r._content)
+				elif 'br' in headers[content_encoding]:
+					# content = brotli.decompress(r._content) fails :c
+					content = r._content.decode('utf-8', 'ignore')
+			else:
+				content = r._content.decode('utf-8', 'ignore')
+
+			# format and write
+
+			# f.write(json.dumps(json.loads(r._content.decode('utf-8')), indent=self.saved_responses_indent))
+			
+			content_type = None
+			content_type_in_headers = True
+			if 'Content-Type' in headers: content_type = 'Content-Type'
+			elif 'content-type' in headers: content_type = 'content-type'
+			else: content_type_in_headers = False
+
+			if content_type_in_headers:
+				if 'text/plain' in headers[content_type]:
+					with open(full_path+'_content', 'w+') as f:
 						f.write(content)
-					elif 'text/html' in headers['Content-Type']:
+				elif 'text/html' in headers[content_type]:
+					with open(full_path+'_content.html', 'w+') as f:
 						f.write(BeautifulSoup(content, 'html.parser').prettify(indent_width=self.saved_responses_indent))
-					elif 'application/json' in headers['Content-Type']:
+				elif 'application/json' in headers[content_type]:
+					with open(full_path+'_content.json', 'w+') as f:
 						f.write(json.dumps(json.loads(content), indent=self.saved_responses_indent))
-					elif 'application/x-www-form-urlencoded' in headers['Content-Type']:
+				elif 'application/x-www-form-urlencoded' in headers[content_type]:
+					with open(full_path+'_content', 'w+') as f:
 						f.write(decode_url(content))
-				else:
+			else:
+				with open(full_path+'_content', 'w+') as f:
 					f.write(content)
 		print(' done')
 
@@ -316,12 +350,19 @@ class SessionSim:
 	def prepare_post_request(self):
 		is_json = False
 		data_type = 'text/plain;charset=UTF-8'
-		if 'content-type' in self.har_request['headers']:
-			is_json = self.har_request['headers']['content-type'] == 'application/json'
-			data_type = self.har_request['headers']['content-type']
+		
+		content_type = None
+		content_type_in_headers = True
+		if 'Content-Type' in self.har_request['headers']: content_type = 'Content-Type'
+		elif 'content-type' in self.har_request['headers']: content_type = 'content-type'
+		else: content_type_in_headers = False
+
+		if content_type_in_headers:
+			data_type = self.har_request['headers'][content_type]
+			is_json = data_type == 'application/json'
 		elif 'mimeType' in self.har_request['postData']:
-			is_json = self.har_request['postData']['mimeType'] == 'application/json'
 			data_type = self.har_request['postData']['mimeType']
+			is_json = data_type == 'application/json'
 		else:
 			cprint(f'could not determine type of postData, setting it to "{data_type}" by default\
 				(the prepared request can be modified and is accessible at self.prepared_request)', RED)
