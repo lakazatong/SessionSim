@@ -7,6 +7,7 @@ from classes import *
 def zalando_function(session_sim, i, before=True):
 	# i is the ith request in the har file (the first is the 0th)
 	# runs before the request is sent
+	return
 	if before:
 		match i:
 			case 1:
@@ -72,6 +73,10 @@ def zalando_function(session_sim, i, before=True):
 			case _:
 				pass
 
+def accept_function(session_sim, i, har_request, har_response):
+	response_status = int(har_response['status'])
+	return response_status == 200
+
 # os.system('clear')
 
 session_sim = SessionSim()
@@ -79,7 +84,13 @@ session_sim = SessionSim()
 
 # simulate login
 session_sim.critical_function = zalando_function
+
+session_sim.run_sim('simple2.har', accept_function=accept_function)
+session_sim.cookie_manager.print_cookies()
+exit(0)
+
 session_sim.load_har('simple2.har')
+
 
 session_sim.sim(0) # new cookies (login page)
 session_sim.sim(1) # update cookies (login page redirection)

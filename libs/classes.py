@@ -5,7 +5,7 @@ class CookieManager:
 	# parses : response.headers['Set-Cookie'] <class 'str'>
 
 	cookies_keys = []
-	cookies_params_keys = ['Path', 'Secure', 'SameSite', 'Domain', 'Expires', 'Max-Age', 'HttpOnly', 'Priority']
+	cookies_params_keys = ['Path', 'path', 'Secure', 'secure', 'SameSite', 'samesite', 'Domain', 'domain', 'Expires', 'expires', 'Max-Age', 'max-age', 'HttpOnly', 'httponly', 'Priority', 'priority']
 	# is_http_only = {
 	# 	"csrf-token": False,
 	# 	"x-csrf-token": False,
@@ -76,7 +76,7 @@ class CookieManager:
 		return 
 
 	def _parse_cookies(self, cookies, cur_cookie_key, tmp_cookies):
-		# print(cookies)
+		print(cookies)
 		if cookies == '': return ''
 		old_cookies = copy.deepcopy(cookies)
 		is_cookie, pair, cookies = self._get_next_pair(cookies)
