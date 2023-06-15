@@ -11,26 +11,6 @@ class CookieManager:
 
 	cookies_keys = []
 	cookies_params_keys = ['Path', 'path', 'Secure', 'secure', 'SameSite', 'samesite', 'Domain', 'domain', 'Expires', 'expires', 'Max-Age', 'max-age', 'HttpOnly', 'httponly', 'Priority', 'priority']
-	# is_http_only = {
-	# 	"csrf-token": False,
-	# 	"x-csrf-token": False,
-	# 	"_abck": False,
-	# 	"ak_bmsc": True,
-	# 	"bm_mi": False,
-	# 	"bm_sz": False,
-	# 	"bm_sv": False,
-	# 	"frsx": False,
-	# 	"Zalando-Client-Id": True,
-	# 	"X-Zalando-Client-Id": True,
-	# 	"fvgs_ml": False,
-	# 	"mpulseinject": False,
-	# 	"zsn": True,
-	# 	"zss": True,
-	# 	"zsr": True,
-	# 	"zsa": True,
-	# 	"zac": False,
-	# 	"5572cbed-2524-4e11-b0f1-f574f1d2ccb1": True
-	# }
 	cookies = {}
 	tmp_cookies = {}
 
@@ -50,7 +30,7 @@ class CookieManager:
 		cookie_value, cookies = self._get_value(cookies, cookie_key+'=', [',', ';'])
 		return True, (cookie_key, cookie_value), cookies
 	def _get_param(self, param_key, cookies):
-		param_value, cookies = self._get_value(cookies, param_key, [';', ',']) if param_key != 'Expires' else self._get_value(cookies, param_key, [';'])
+		param_value, cookies = self._get_value(cookies, param_key, [';', ',']) if (param_key != 'Expires' and param_key != 'expires') else self._get_value(cookies, param_key, [';'])
 		return False, (param_key, param_value[1:] if param_value != '' else True), cookies
 
 	def _get_next_pair(self, cookies):
@@ -59,15 +39,12 @@ class CookieManager:
 		param_index, param_key = get_next_key(cookies, self.cookies_params_keys)
 		old_cookies = copy.deepcopy(cookies)
 		if cookie_index == -1:
-			if param_index == -1:
-				# cprint('no more pair found in the keys provided', RED)
-				# print('cookies were:\n' + old_cookies)
-				# exit(1)
-
-				# new cookie key, let _parse_cookies handle it
-				return False, (None, None), cookies
-			else: 
+			# no more cookie key, next param should be at 0
+			if param_index == 0:
 				r = self._get_param(param_key, cookies)
+			# new cookie key, let _parse_cookies handle it
+			else:
+				return False, (None, None), cookies, True
 		else:
 			if param_index == -1: 
 				r = self._get_cookie(cookie_key, cookies)
@@ -75,18 +52,24 @@ class CookieManager:
 				r = self._get_cookie(cookie_key, cookies)
 			else: 
 				r = self._get_param(param_key, cookies)
-		return r
+		return *r, False
 
 	def parse_key(self, cookies):
 		return 
 
 	def _parse_cookies(self, cookies, cur_cookie_key, tmp_cookies):
-		# print(cookies)
+		print(cookies)
+		print()
 		if cookies == '': return ''
 		old_cookies = copy.deepcopy(cookies)
-		is_cookie, pair, cookies = self._get_next_pair(cookies)
+		is_cookie, pair, cookies, new_cookie = self._get_next_pair(cookies)
 
-		if is_cookie:
+		if new_cookie:
+			# add new key found
+			self.cookies_keys.append(old_cookies[:old_cookies.find('=')])
+			# try again
+			self._parse_cookies(old_cookies, '', tmp_cookies)
+		elif is_cookie:
 			tmp_cookies[pair[0]] = {}
 			tmp_cookies[pair[0]]['value'] = pair[1]
 			self._parse_cookies(cookies, pair[0], tmp_cookies)
@@ -94,11 +77,8 @@ class CookieManager:
 			tmp_cookies[cur_cookie_key][pair[0]] = pair[1]
 			self._parse_cookies(cookies, cur_cookie_key, tmp_cookies)
 		else:
-
-			# add new key found
-			self.cookies_keys.append(old_cookies[:old_cookies.find('=')])
-			# try again
-			self._parse_cookies(old_cookies, '', tmp_cookies)
+			cprint('impossible case reached?', RED)
+			
 		return tmp_cookies
 
 	def update_cookies(self, cookies, always_replace=False):
@@ -106,7 +86,7 @@ class CookieManager:
 		tmp_cookies = self._parse_cookies(cookies, '', tmp_cookies)
 		for cookie_key, cookie_params in tmp_cookies.items():
 			# Expires is set to Session if no Expire param is provided
-			if not 'Expires' in cookie_params:
+			if not ('Expires' in cookie_params or 'expires' in cookie_params):
 				tmp_cookies[cookie_key]['Expires'] = 'Session'
 			if not 'Size' in cookie_params:
 				tmp_cookies[cookie_key]['Size'] = str(len(cookie_params['value'])+len(cookie_key))
@@ -114,7 +94,7 @@ class CookieManager:
 			# 	tmp_cookies[cookie_key]['HttpOnly'] = self.is_http_only[cookie_key]
 
 			# existing cookie and is not expired
-			if not always_replace and cookie_key in self.cookies and tmp_cookies[cookie_key]['Expires'] != 'Session' and convert_to_unix_time(self.cookies[cookie_key]['Expires']) > time.time():
+			if not always_replace and cookie_key in self.cookies and (('Expires' in tmp_cookies[cookie_key] and tmp_cookies[cookie_key]['Expires'] != 'Session') or ('expires' in tmp_cookies[cookie_key] and tmp_cookies[cookie_key]['expires'] != 'Session')) and (('Expires' in self.cookies[cookie_key] and convert_to_unix_time(self.cookies[cookie_key]['Expires']) > time.time()) or ('expires' in self.cookies[cookie_key] and convert_to_unix_time(self.cookies[cookie_key]['expires']) > time.time())):
 				continue
 			# else either always_replace, new cookie, session cookie, or expired cookie, then add/replace it
 			if not cookie_key in self.cookies:

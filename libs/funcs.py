@@ -88,7 +88,6 @@ def convert_to_unix_time(date_string):
 	unix_time = int(time.mktime(parsed_date.timetuple()))
 	return unix_time
 
-
 def get_next_key(string, keys):
 	start_index = 0
 	minimum_index = -1
