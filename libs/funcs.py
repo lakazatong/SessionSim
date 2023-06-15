@@ -84,10 +84,11 @@ def print_json(obj, indent=3):
 
 def convert_to_unix_time(date_string):
 	# Define the input date format
-	date_format = "%a, %d %b %Y %H:%M:%S %Z"
+	date_format = "%a, %d-%b-%Y %H:%M:%S %Z"
 	parsed_date = datetime.strptime(date_string, date_format)
 	unix_time = int(time.mktime(parsed_date.timetuple()))
 	return unix_time
+
 
 def get_next_key(string, keys):
 	start_index = 0

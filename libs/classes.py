@@ -360,8 +360,7 @@ class SessionSim:
 		elif method == 'GET':
 			self.prepare_get_request()
 		else:
-			cprint(f'{method} method not supported, set it to "GET" request by default\
-				(the prepared request can be modified and is accessible at self.prepared_request)', RED)
+			cprint(f'{method} method not supported, set it to "GET" request by default\n(the prepared request can be modified and is accessible at self.prepared_request)', RED)
 			method = 'GET'
 		# json representation of the request that will be made and an be modified
 		url = self.request['url']
