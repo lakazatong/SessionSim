@@ -5,7 +5,7 @@ class CookieManager:
 	# parses : response.headers['Set-Cookie'] <class 'str'>
 
 	cookies_keys = []
-	cookies_params_keys = ['path', 'secure', 'samesite', 'domain', 'expires', 'max-age', 'HttpOnly']
+	cookies_params_keys = ['Path', 'Secure', 'SameSite', 'Domain', 'Expires', 'Max-Age', 'HttpOnly']
 	# is_http_only = {
 	# 	"csrf-token": False,
 	# 	"x-csrf-token": False,
@@ -45,7 +45,7 @@ class CookieManager:
 		cookie_value, cookies = self._get_value(cookies, cookie_key+'=', [',', ';'])
 		return True, (cookie_key, cookie_value), cookies
 	def _get_param(self, param_key, cookies):
-		param_value, cookies = self._get_value(cookies, param_key, [';', ',']) if param_key != 'expires' else self._get_value(cookies, param_key, [';'])
+		param_value, cookies = self._get_value(cookies, param_key, [';', ',']) if param_key != 'Expires' else self._get_value(cookies, param_key, [';'])
 		return False, (param_key, param_value[1:] if param_value != '' else True), cookies
 
 	def _get_next_pair(self, cookies):
@@ -76,15 +76,10 @@ class CookieManager:
 		return 
 
 	def _parse_cookies(self, cookies, cur_cookie_key, tmp_cookies):
-		print(cookies)
 		if cookies == '': return ''
 		old_cookies = copy.deepcopy(cookies)
 		is_cookie, pair, cookies = self._get_next_pair(cookies)
 
-		# print('next is:\n'+str(pair))
-		# print()
-		# print('\n')
-		# print('new cookies:\n'+cookies)
 		if is_cookie:
 			tmp_cookies[pair[0]] = {}
 			tmp_cookies[pair[0]]['value'] = pair[1]
@@ -93,9 +88,6 @@ class CookieManager:
 			tmp_cookies[cur_cookie_key][pair[0]] = pair[1]
 			self._parse_cookies(cookies, cur_cookie_key, tmp_cookies)
 		else:
-			# cprint('cookies started with a cookie param? ' + str(pair), RED)
-			# print('cookies were:\n' + old_cookies + '\n')
-			# exit(1)
 
 			# add new key found
 			self.cookies_keys.append(old_cookies[:old_cookies.find('=')])
