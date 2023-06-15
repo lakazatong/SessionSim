@@ -76,7 +76,7 @@ class CookieManager:
 		return 
 
 	def _parse_cookies(self, cookies, cur_cookie_key, tmp_cookies):
-		print(cookies)
+		# print(cookies)
 		if cookies == '': return ''
 		old_cookies = copy.deepcopy(cookies)
 		is_cookie, pair, cookies = self._get_next_pair(cookies)
