@@ -1,6 +1,7 @@
 import os, sys, time, inspect, json, urllib.parse, re, platform
 from pprint import pprint
-from datetime import datetime
+from datetime import datetime, timezone
+from math import *
 
 try:
 	from bs4 import BeautifulSoup
@@ -12,6 +13,11 @@ try:
 except:
 	os.system('pip install parsel')
 	from parsel import Selector
+try:
+	import pytz
+except:
+	os.system('pip install pytz')
+	import pytz
 
 # make it work for windows?
 BLACK, RED, GREEN, YELLOW, BLUE, PURPLE, CYAN, WHITE = 30, 31, 32, 33, 34, 35, 36, 37
@@ -94,7 +100,9 @@ def convert_to_unix_time(date_string):
 
 def format_time_ago(date_str, format_str):
 	date = datetime.strptime(date_str, format_str)
-	now = datetime.utcnow()
+	if date.tzinfo is None or date.tzinfo.utcoffset(date) is None:
+		date = pytz.utc.localize(date)
+	now = datetime.now(timezone.utc)
 	time_diff = now - date
 	
 	years = time_diff.days // 365
@@ -106,15 +114,41 @@ def format_time_ago(date_str, format_str):
 	seconds = time_diff.seconds % 60
 	
 	if years > 0:
+		if months >= 6: years += 1
+		decades = floor(years/10)
+		centuries = floor(decades/10)
+		if centuries > 0:
+			return f"{centuries} centurie{'s' if centuries > 1 else ''} ago"
+		elif decades > 0:
+			return f"{decades} decade{'s' if decades > 1 else ''} ago"
 		return f"{years} year{'s' if years > 1 else ''} ago"
 	elif months > 0:
+		if days >= 15: # rougly half a month
+			months += 1
+			if months == 12: return '1 year ago'
 		return f"{months} month{'s' if months > 1 else ''} ago"
 	elif weeks > 0:
+		if days >= 4: # round up if friday, saturday or sunday
+			weeks += 1
+			if weeks == 4: return '1 month ago' # roughly a month
 		return f"{weeks} week{'s' if weeks > 1 else ''} ago"
 	elif days > 0:
+		if hours >= 12:
+			days += 1
+			if days == 7: return '1 week ago'
 		return f"{days} day{'s' if days > 1 else ''} ago"
+	elif hours > 0:
+		if minutes >= 30:
+			hours += 1
+			if hours == 24: return '1 day ago'
+		return f"{hours} hour{'s' if hours > 1 else ''} ago"
+	elif minutes > 0:
+		if seconds >= 30:
+			minutes += 1
+			if minutes == 60: return '1 hour ago'
+		return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
 	else:
-		return f"{hours}h {minutes}m {seconds}s ago"
+		return f"{seconds} second{'s' if seconds > 1 else ''} ago"
 
 def get_next_key(string, keys):
 	start_index = 0
