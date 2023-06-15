@@ -312,7 +312,7 @@ class SessionSim:
 					f.write(content)
 		print(' done')
 
-	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, wd=None, allow_redirects=False, timeout=10):
+	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, wd=None, allow_redirects=False, timeout=10, debug_mode=True):
 		# currently used headers throughout a simulation
 		self.request['headers'] = headers
 		# manages the cookies of the session
@@ -326,6 +326,9 @@ class SessionSim:
 
 		self.allow_redirects = allow_redirects
 		self.timeout = timeout
+
+		# prints bunch of stuff for debugging
+		self.debug_mode = debug_mode
 
 	def prepare_post_request(self):
 		is_json = False
@@ -402,14 +405,14 @@ class SessionSim:
 		self.send_request = send_request
 
 	def report_error(self):
-		method, url = self.prepared_request['method'], self.prepared_request['url']
-		cprint(f'({self.index}) {self.code} | {method} | {url}\n', RED)
-		# cprint('request headers were:\n', RED)
-		# print(json.dumps(self.request['headers'], indent=3))
+		if self.debug_mode:
+			method, url = self.prepared_request['method'], self.prepared_request['url']
+			cprint(f'({self.index}) {self.code} | {method} | {url}\n', RED)
 
 	def response_ok(self):
-		method, url = self.prepared_request['method'], self.prepared_request['url']
-		cprint(f'({self.index}) {self.code} | {method} | {url}\n', GREEN)
+		if self.debug_mode:
+			method, url = self.prepared_request['method'], self.prepared_request['url']
+			cprint(f'({self.index}) {self.code} | {method} | {url}\n', GREEN)
 		if self.save_responses:
 			self.save_response()
 
@@ -468,9 +471,9 @@ class SessionSim:
 				if value != None:
 					self.request['headers']['Cookie'] += f'{key}={value}; '
 					self.request['cookies'][key] = value
-				else:
+				elif self.debug_mode:
 					cprint('missing cookie : '+key, RED)
-			else:
+			elif self.debug_mode:
 				cprint('unknown cookie : '+key, RED)
 		self.request['headers']['Cookie'].strip()
 		if self.request['headers']['Cookie'] != '': self.request['headers']['Cookie'] = self.request['headers']['Cookie'][:-2]
@@ -493,7 +496,7 @@ class SessionSim:
 		time.sleep(0.5)
 
 	def sim(self, index, prompt=False):
-		print('-'*shutil.get_terminal_size().columns)
+		if self.debug_mode:	print('-'*shutil.get_terminal_size().columns)
 		# init
 		self.critical_function_check()
 		self.folder = os.path.splitext(self.har_filename)[0]+'_single'
@@ -515,7 +518,7 @@ class SessionSim:
 		self.previous_har_request = self.har_request
 		self.previous_request = self.request
 		if prompt: input()
-		print('-'*shutil.get_terminal_size().columns)
+		if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 
 	def _run_sim_with_filter(self, response_codes_filter):
 		self.index = 0
@@ -523,7 +526,7 @@ class SessionSim:
 			if not int(self.request_list[self.index]['response']['status']) in response_codes_filter:
 				self.index += 1
 				continue
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 			self.har_request = self.request_list[self.index]['request']
 			self.request = copy.copy(self.har_request)
 			self.run()
@@ -531,7 +534,7 @@ class SessionSim:
 			self.previous_response = self.response
 			self.previous_har_request = self.har_request
 			self.previous_request = self.request
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 
 	def _run_sim_with_indices_filter(self, indices, response_codes_filter):
 		i = 0
@@ -541,7 +544,7 @@ class SessionSim:
 				i += 1
 				self.index = indices[i]
 				continue
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 			self.har_request = self.request_list[self.index]['request']
 			self.request = copy.copy(self.har_request)
 			self.run()
@@ -550,13 +553,13 @@ class SessionSim:
 			self.previous_response = self.response
 			self.previous_har_request = self.har_request
 			self.previous_request = self.request
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 
 	def _run_sim_with_indices(self, indices):
 		i = 0
 		self.index = indices[i]
 		while i < len(indices):
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 			self.har_request = self.request_list[self.index]['request']
 			self.request = copy.copy(self.har_request)
 			self.run()
@@ -565,12 +568,12 @@ class SessionSim:
 			self.previous_response = self.response
 			self.previous_har_request = self.har_request
 			self.previous_request = self.request
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 
 	def _run_sim(self):
 		self.index = 0
 		while self.index < self.nb_requests:
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 			self.har_request = self.request_list[self.index]['request']
 			self.request = copy.copy(self.har_request)
 			self.run()
@@ -578,7 +581,7 @@ class SessionSim:
 			self.previous_response = self.response
 			self.previous_har_request = self.har_request
 			self.previous_request = self.request
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 
 	def _run_sim_with_func(self, accept_function):
 		self.index = 0
@@ -586,7 +589,7 @@ class SessionSim:
 			if not accept_function(self, self.index, self.request_list[self.index]['request'], self.request_list[self.index]['response']):
 				self.index += 1
 				continue
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 			self.har_request = self.request_list[self.index]['request']
 			self.request = copy.copy(self.har_request)
 			self.run()
@@ -594,7 +597,7 @@ class SessionSim:
 			self.previous_response = self.response
 			self.previous_har_request = self.har_request
 			self.previous_request = self.request
-			print('-'*shutil.get_terminal_size().columns)
+			if self.debug_mode: print('-'*shutil.get_terminal_size().columns)
 
 	def run_sim(self, har, indices=[], response_codes_filter=[], accept_function=None):
 		self.load_har(har)
