@@ -312,13 +312,13 @@ class SessionSim:
 			else:
 				with open(full_path+'_content', 'w+') as f:
 					f.write(content)
-		print(' done')
+		if self.debug_mode: print(' done')
 
 	def __init__(self, headers={}, cookies='', save_responses=True, critical_function=None, wd=None, allow_redirects=False, timeout=10, debug_mode=True):
 		# currently used headers throughout a simulation
 		self.request['headers'] = headers
 		# manages the cookies of the session
-		self.cookie_manager = CookieManager(cookies)
+		self.cookie_manager = CookieManager(cookies, debug_mode=debug_mode)
 		# saves requests' responses that sent back ressources
 		self.save_responses = save_responses
 		# function for critical cases to be handled manually
