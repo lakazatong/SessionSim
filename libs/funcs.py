@@ -92,6 +92,30 @@ def convert_to_unix_time(date_string):
 	unix_time = int(time.mktime(parsed_date.timetuple()))
 	return unix_time
 
+def format_time_ago(date_str, format_str):
+	date = datetime.strptime(date_str, format_str)
+	now = datetime.utcnow()
+	time_diff = now - date
+	
+	years = time_diff.days // 365
+	months = time_diff.days // 30
+	weeks = time_diff.days // 7
+	days = time_diff.days
+	hours = time_diff.seconds // 3600
+	minutes = (time_diff.seconds % 3600) // 60
+	seconds = time_diff.seconds % 60
+	
+	if years > 0:
+		return f"{years} year{'s' if years > 1 else ''} ago"
+	elif months > 0:
+		return f"{months} month{'s' if months > 1 else ''} ago"
+	elif weeks > 0:
+		return f"{weeks} week{'s' if weeks > 1 else ''} ago"
+	elif days > 0:
+		return f"{days} day{'s' if days > 1 else ''} ago"
+	else:
+		return f"{hours}h {minutes}m {seconds}s ago"
+
 def get_next_key(string, keys):
 	start_index = 0
 	minimum_index = -1
