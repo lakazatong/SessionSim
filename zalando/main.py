@@ -4,7 +4,7 @@ sys.path.append('../libs')
 from classes import *
 # init
 
-def zalando_function(i, session_sim, before=True):
+def zalando_function(session_sim, i, before=True):
 	# i is the ith request in the har file (the first is the 0th)
 	# runs before the request is sent
 	if before:

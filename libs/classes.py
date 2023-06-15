@@ -4,8 +4,8 @@ from funcs import *
 class CookieManager:
 	# parses : response.headers['Set-Cookie'] <class 'str'>
 
-	cookies_keys = ['csrf-token', 'x-csrf-token', '_abck', 'ak_bmsc', 'bm_mi', 'bm_sz', 'bm_sv', 'frsx', 'Zalando-Client-Id', 'X-Zalando-Client-Id', 'fvgs_ml', 'mpulseinject', 'zsn', 'zss', 'zsr', 'zsa', 'zac', '5572cbed-2524-4e11-b0f1-f574f1d2ccb1']
-	cookies_params_keys = ['path', 'secure', 'samesite', 'domain', 'expires', 'max-age', 'httponly']
+	cookies_keys = []
+	cookies_params_keys = ['path', 'secure', 'samesite', 'domain', 'expires', 'max-age', 'HttpOnly']
 	# is_http_only = {
 	# 	"csrf-token": False,
 	# 	"x-csrf-token": False,
@@ -29,7 +29,7 @@ class CookieManager:
 	cookies = {}
 	tmp_cookies = {}
 
-	def get_value(self, cookies, key, end_tokens):
+	def _get_value(self, cookies, key, end_tokens):
 		start = cookies.find(key)+len(key)
 		ends = []
 		for end_token in end_tokens:
@@ -42,10 +42,10 @@ class CookieManager:
 		return value, cookies
 
 	def _get_cookie(self, cookie_key, cookies):
-		cookie_value, cookies = self.get_value(cookies, cookie_key+'=', [',', ';'])
+		cookie_value, cookies = self._get_value(cookies, cookie_key+'=', [',', ';'])
 		return True, (cookie_key, cookie_value), cookies
 	def _get_param(self, param_key, cookies):
-		param_value, cookies = self.get_value(cookies, param_key, [';', ',']) if param_key != 'Expires' else self.get_value(cookies, param_key, [';'])
+		param_value, cookies = self._get_value(cookies, param_key, [';', ',']) if param_key != 'expires' else self._get_value(cookies, param_key, [';'])
 		return False, (param_key, param_value[1:] if param_value != '' else True), cookies
 
 	def _get_next_pair(self, cookies):
@@ -55,51 +55,57 @@ class CookieManager:
 		old_cookies = copy.deepcopy(cookies)
 		if cookie_index == -1:
 			if param_index == -1:
-				cprint('no more pair found in the keys provided', RED)
-				print('cookies were:\n' + old_cookies)
-				exit(1)
+				# cprint('no more pair found in the keys provided', RED)
+				# print('cookies were:\n' + old_cookies)
+				# exit(1)
+
+				# new cookie key, let _parse_cookies handle it
+				return False, (None, None), cookies
 			else: 
-				pair = self._get_param(param_key, cookies)
+				r = self._get_param(param_key, cookies)
 		else:
 			if param_index == -1: 
-				pair = self._get_cookie(cookie_key, cookies)
+				r = self._get_cookie(cookie_key, cookies)
 			elif cookie_index < param_index:
-				pair = self._get_cookie(cookie_key, cookies)
+				r = self._get_cookie(cookie_key, cookies)
 			else: 
-				pair = self._get_param(param_key, cookies)
-		return pair
+				r = self._get_param(param_key, cookies)
+		return r
 
 	def parse_key(self, cookies):
 		return 
 
-	def parse_cookies(self, cookies, cur_cookie_key, tmp_cookies):
+	def _parse_cookies(self, cookies, cur_cookie_key, tmp_cookies):
+		print(cookies)
 		if cookies == '': return ''
-		old_cookies = cookies
+		old_cookies = copy.deepcopy(cookies)
 		is_cookie, pair, cookies = self._get_next_pair(cookies)
+
 		# print('next is:\n'+str(pair))
 		# print()
-		# print('new cookies:\n'+cookies)
 		# print('\n')
+		# print('new cookies:\n'+cookies)
 		if is_cookie:
 			tmp_cookies[pair[0]] = {}
 			tmp_cookies[pair[0]]['value'] = pair[1]
-			self.parse_cookies(cookies, pair[0], tmp_cookies)
+			self._parse_cookies(cookies, pair[0], tmp_cookies)
 		elif cur_cookie_key != '':
 			tmp_cookies[cur_cookie_key][pair[0]] = pair[1]
-			self.parse_cookies(cookies, cur_cookie_key, tmp_cookies)
+			self._parse_cookies(cookies, cur_cookie_key, tmp_cookies)
 		else:
 			# cprint('cookies started with a cookie param? ' + str(pair), RED)
 			# print('cookies were:\n' + old_cookies + '\n')
 			# exit(1)
+
 			# add new key found
 			self.cookies_keys.append(old_cookies[:old_cookies.find('=')])
 			# try again
-			self.parse_cookies(old_cookies, cur_cookie_key, tmp_cookies)
+			self._parse_cookies(old_cookies, '', tmp_cookies)
 		return tmp_cookies
 
 	def update_cookies(self, cookies, always_replace=False):
 		tmp_cookies = {}
-		tmp_cookies = self.parse_cookies(cookies, '', tmp_cookies)
+		tmp_cookies = self._parse_cookies(cookies, '', tmp_cookies)
 		for cookie_key, cookie_params in tmp_cookies.items():
 			# Expires is set to Session if no Expire param is provided
 			if not 'Expires' in cookie_params:
@@ -283,7 +289,7 @@ class SessionSim:
 			f.write(json.dumps(saved_response, indent=self.saved_responses_indent))
 		if r._content != b'':
 			# ignore the content-encoding and always go with utf-8 for simplicity
-			content = r._content.decode('utf-8')
+			content = r._content.decode('utf-8', 'ignore')
 			with open(full_path+'_content', 'w+') as f:
 				# f.write(json.dumps(json.loads(r._content.decode('utf-8')), indent=self.saved_responses_indent))
 				if 'Content-Type' in headers:
@@ -418,7 +424,7 @@ class SessionSim:
 	def make_request_from_HAR(self, max_retries=3):
 		# create and send the request
 		self.prepare_request()
-		self.critical_function(self.index, self, before=True)
+		self.critical_function(self, self.index, before=True)
 		self.response = self.send_request()
 		# only consider first response
 		# if self.response.history != []:
@@ -470,7 +476,7 @@ class SessionSim:
 		# update cookies
 		if 'Set-Cookie' in self.response.headers: self.cookie_manager.update_cookies(self.response.headers['Set-Cookie'])
 		if 'set-cookie' in self.response.headers: self.cookie_manager.update_cookies(self.response.headers['set-cookie'])
-		self.critical_function(self.index, self, before=False)
+		self.critical_function(self, self.index, before=False)
 		time.sleep(0.5)
 
 	def sim(self, index, prompt=False):
@@ -498,12 +504,57 @@ class SessionSim:
 		if prompt: input()
 		print('-'*shutil.get_terminal_size().columns)
 
-	def run_sim(self, har, indices=[]):
-		# init
-		self.load_har(har)
-		self.critical_function_check()
-		self.folder = os.path.splitext(har)[0]+'_sim'
-		self.manage_folder()
+	def _run_sim_with_filter(self, response_codes_filter):
+		self.index = 0
+		while self.index < self.nb_requests:
+			if not int(self.request_list[self.index]['response']['status']) in response_codes_filter:
+				self.index += 1
+				continue
+			print('-'*shutil.get_terminal_size().columns)
+			self.har_request = self.request_list[self.index]['request']
+			self.request = copy.copy(self.har_request)
+			self.run()
+			self.index += 1
+			self.previous_response = self.response
+			self.previous_har_request = self.har_request
+			self.previous_request = self.request
+			print('-'*shutil.get_terminal_size().columns)
+
+	def _run_sim_with_indices_filter(self, indices, response_codes_filter):
+		i = 0
+		self.index = indices[i]
+		while i < len(indices):
+			if not int(self.request_list[self.index]['response']['status']) in response_codes_filter:
+				i += 1
+				self.index = indices[i]
+				continue
+			print('-'*shutil.get_terminal_size().columns)
+			self.har_request = self.request_list[self.index]['request']
+			self.request = copy.copy(self.har_request)
+			self.run()
+			i += 1
+			self.index = indices[i]
+			self.previous_response = self.response
+			self.previous_har_request = self.har_request
+			self.previous_request = self.request
+			print('-'*shutil.get_terminal_size().columns)
+
+	def _run_sim_with_indices(self, indices):
+		i = 0
+		self.index = indices[i]
+		while i < len(indices):
+			print('-'*shutil.get_terminal_size().columns)
+			self.har_request = self.request_list[self.index]['request']
+			self.request = copy.copy(self.har_request)
+			self.run()
+			i += 1
+			self.index = indices[i]
+			self.previous_response = self.response
+			self.previous_har_request = self.har_request
+			self.previous_request = self.request
+			print('-'*shutil.get_terminal_size().columns)
+
+	def _run_sim(self):
 		self.index = 0
 		while self.index < self.nb_requests:
 			print('-'*shutil.get_terminal_size().columns)
@@ -515,6 +566,44 @@ class SessionSim:
 			self.previous_har_request = self.har_request
 			self.previous_request = self.request
 			print('-'*shutil.get_terminal_size().columns)
+
+	def _run_sim_with_func(self, accept_function):
+		self.index = 0
+		while self.index < self.nb_requests:
+			if not accept_function(self, self.index, self.request_list[self.index]['request'], self.request_list[self.index]['response']):
+				self.index += 1
+				continue
+			print('-'*shutil.get_terminal_size().columns)
+			self.har_request = self.request_list[self.index]['request']
+			self.request = copy.copy(self.har_request)
+			self.run()
+			self.index += 1
+			self.previous_response = self.response
+			self.previous_har_request = self.har_request
+			self.previous_request = self.request
+			print('-'*shutil.get_terminal_size().columns)
+
+	def run_sim(self, har, indices=[], response_codes_filter=[], accept_function=None):
+		self.load_har(har)
+		self.critical_function_check()
+		self.folder = os.path.splitext(har)[0]+'_sim'
+		self.manage_folder()
+
+		if accept_function != None:
+			self._run_sim_with_func(accept_function)
+		else:
+			if indices != []:
+				if response_codes_filter != []:
+					self._run_sim_with_indices_filter(indices, response_codes_filter)
+				else:
+					self._run_sim_with_indices(indices)
+			else:
+				if response_codes_filter != []:
+					self._run_sim_with_filter(response_codes_filter)
+				else:
+					self._run_sim()
+
+		
 
 	def print_cookies(self):
 		self.cookie_manager.print_cookies()

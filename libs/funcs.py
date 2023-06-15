@@ -1,4 +1,4 @@
-import os, time, inspect, json, urllib.parse, re
+import os, time, inspect, json, urllib.parse, re, platform
 from pprint import pprint
 from datetime import datetime
 
@@ -14,6 +14,7 @@ except:
 	os.system('pip install parsel')
 	from parsel import Selector
 
+# make it work for windows?
 BLACK, RED, GREEN, YELLOW, BLUE, PURPLE, CYAN, WHITE = 30, 31, 32, 33, 34, 35, 36, 37
 def cprint(string, color_code=30, end='\n'):
 	print(f"\033[{color_code}m{string}\033[0m", end=end)
@@ -24,7 +25,10 @@ def wget(url:str, output_filename:str=None, output_dir:str=None, show_progress:b
 	quiet_opt = '-q' if quiet else ''
 	auth_opt = f'--user "{auth[0]}" --password "{auth[1]}"' if auth != None else ''
 	header_opt = ' '.join([f'--header="{key}: {value}"' for key, value in headers.items()]) if headers != None else ''
-	cmd = f'wget {quiet_opt} {progress_opt} {output_opt} {auth_opt} {header_opt} "{url}"'
+	if platform.system() == 'Windows':
+		cmd = f'wsl wget {quiet_opt} {progress_opt} {output_opt} {auth_opt} {header_opt} "{url}"'
+	else:
+		cmd = f'wget {quiet_opt} {progress_opt} {output_opt} {auth_opt} {header_opt} "{url}"'
 	if print_cmd:
 		if header_opt != '': header_opt = '--header=...'
 		print(f'wget {quiet_opt} {progress_opt} {output_opt} {auth_opt} {header_opt} {url}')
@@ -86,19 +90,22 @@ def convert_to_unix_time(date_string):
 	return unix_time
 
 def get_next_key(string, keys):
-	string_lower = string.lower()
 	start_index = 0
+	minimum_index = -1
 	n = len(keys)
-	minimum_index = string_lower.find(keys[start_index])
+	if n > 0:
+		minimum_index = string.find(keys[start_index])
+	else:
+		return -1, None
 	while minimum_index == -1 and start_index < n-1:
 		start_index += 1
-		minimum_index = string_lower.find(keys[start_index])
+		minimum_index = string.find(keys[start_index])
 	if start_index == n:
 		return -1, None
 	minimum_key = keys[start_index]
 	if minimum_index > 0:
 		for i in range(start_index+1, n):
-			cur_index = string_lower.find(keys[i])
+			cur_index = string.find(keys[i])
 			if cur_index < minimum_index and cur_index != -1:
 				minimum_key = keys[i]
 				minimum_index = cur_index
