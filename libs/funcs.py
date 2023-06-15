@@ -81,6 +81,10 @@ def print_json(obj, indent=3):
 		obj = json.loads(obj)
 	print(json.dumps(obj, indent=indent))
 
+def save_json(obj, filename, indent=3):
+	with open(filename, 'w+') as f:
+		f.write(json.dumps(obj, indent=indent))
+
 def convert_to_unix_time(date_string):
 	# Define the input date format
 	date_format = "%a, %d-%b-%Y %H:%M:%S %Z" if '-' in date_string else "%a, %d %b %Y %H:%M:%S %Z"
