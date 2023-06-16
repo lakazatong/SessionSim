@@ -211,6 +211,10 @@ class SessionSim:
 	nb_requests = -1
 	# indent of saved json formatted responses
 	saved_responses_indent = 3
+	# where the current saved response is
+	saved_response_path = ''
+	# where the current saved response content is
+	saved_response_content_path = ''
 	
 	previous_response = None
 
@@ -265,7 +269,8 @@ class SessionSim:
 			"elapsed": str(r.elapsed)
 		}
 
-		with open(full_path, 'w+') as f:
+		self.saved_response_path = full_path+'.json'
+		with open(self.saved_response_path, 'w+') as f:
 			f.write(json.dumps(saved_response, indent=self.saved_responses_indent))
 		if r._content != b'':
 			
@@ -295,22 +300,25 @@ class SessionSim:
 			if 'Content-Type' in headers: content_type = 'Content-Type'
 			elif 'content-type' in headers: content_type = 'content-type'
 			else: content_type_in_headers = False
+			self.saved_response_content_path = full_path+'_content'
 
 			if content_type_in_headers:
 				if 'text/plain' in headers[content_type]:
-					with open(full_path+'_content', 'w+') as f:
+					with open(self.saved_response_content_path, 'w+') as f:
 						f.write(content)
 				elif 'text/html' in headers[content_type]:
-					with open(full_path+'_content.html', 'w+') as f:
+					self.saved_response_content_path += '.html'
+					with open(self.saved_response_content_path, 'w+') as f:
 						f.write(BeautifulSoup(content, 'html.parser').prettify(indent_width=self.saved_responses_indent))
 				elif 'application/json' in headers[content_type]:
-					with open(full_path+'_content.json', 'w+') as f:
+					self.saved_response_content_path += '.json'
+					with open(self.saved_response_content_path, 'w+') as f:
 						f.write(json.dumps(json.loads(content), indent=self.saved_responses_indent))
 				elif 'application/x-www-form-urlencoded' in headers[content_type]:
-					with open(full_path+'_content', 'w+') as f:
+					with open(self.saved_response_content_path, 'w+') as f:
 						f.write(decode_url(content))
 			else:
-				with open(full_path+'_content', 'w+') as f:
+				with open(self.saved_response_content_path, 'w+') as f:
 					f.write(content)
 		if self.debug_mode: print(' done')
 
@@ -410,6 +418,8 @@ class SessionSim:
 		if self.debug_mode:
 			method, url = self.prepared_request['method'], self.prepared_request['url']
 			cprint(f'({self.index}) {self.code} | {method} | {url}\n', RED)
+		if self.save_responses:
+			self.save_response()
 
 	def response_ok(self):
 		if self.debug_mode:
