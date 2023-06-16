@@ -58,8 +58,6 @@ class CookieManager:
 		return 
 
 	def _parse_cookies(self, cookies, cur_cookie_key, tmp_cookies):
-		# print(cookies)
-		# print()
 		if cookies == '': return ''
 		old_cookies = copy.deepcopy(cookies)
 		is_cookie, pair, cookies, new_cookie = self._get_next_pair(cookies)
@@ -94,7 +92,7 @@ class CookieManager:
 			# 	tmp_cookies[cookie_key]['HttpOnly'] = self.is_http_only[cookie_key]
 
 			# existing cookie and is not expired
-			if not always_replace and cookie_key in self.cookies and (('Expires' in tmp_cookies[cookie_key] and tmp_cookies[cookie_key]['Expires'] != 'Session') or ('expires' in tmp_cookies[cookie_key] and tmp_cookies[cookie_key]['expires'] != 'Session')) and (('Expires' in self.cookies[cookie_key] and convert_to_unix_time(self.cookies[cookie_key]['Expires']) > time.time()) or ('expires' in self.cookies[cookie_key] and convert_to_unix_time(self.cookies[cookie_key]['expires']) > time.time())):
+			if not always_replace and cookie_key in self.cookies and (('Expires' in tmp_cookies[cookie_key] and tmp_cookies[cookie_key]['Expires'] != 'Session') or ('expires' in tmp_cookies[cookie_key] and tmp_cookies[cookie_key]['expires'] != 'Session')) and (('Expires' in self.cookies[cookie_key] and convert_to_unix_time(self.cookies[cookie_key]['Expires'], '%a, %d-%b-%Y %H:%M:%S %Z' if '-' in self.cookies[cookie_key]['Expires'] else '%a, %d %b %Y %H:%M:%S %Z') > time.time()) or ('expires' in self.cookies[cookie_key] and convert_to_unix_time(self.cookies[cookie_key]['expires'], '%a, %d-%b-%Y %H:%M:%S %Z' if '-' in self.cookies[cookie_key]['expires'] else '%a, %d %b %Y %H:%M:%S %Z') > time.time())):
 				continue
 			# else either always_replace, new cookie, session cookie, or expired cookie, then add/replace it
 			if not cookie_key in self.cookies:
