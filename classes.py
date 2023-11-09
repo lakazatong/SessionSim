@@ -1,10 +1,27 @@
-import requests, copy, itertools, shutil, zlib
-try:
-	import brotli
-except:
-	os.system('pip install brotli')
-	import brotli
-from funcs import *
+import requests, copy, itertools, shutil, zlib, brotli
+from ..python_utils.utils.all import *
+
+def get_next_key(string, keys):
+	start_index = 0
+	minimum_index = -1
+	n = len(keys)
+	if n > 0:
+		minimum_index = string.find(keys[start_index])
+	else:
+		return -1, None
+	while minimum_index == -1 and start_index < n-1:
+		start_index += 1
+		minimum_index = string.find(keys[start_index])
+	if start_index == n:
+		return -1, None
+	minimum_key = keys[start_index]
+	if minimum_index > 0:
+		for i in range(start_index+1, n):
+			cur_index = string.find(keys[i])
+			if cur_index < minimum_index and cur_index != -1:
+				minimum_key = keys[i]
+				minimum_index = cur_index
+	return minimum_index, minimum_key
 
 class CookieManager:
 	# parses : response.headers['Set-Cookie'] <class 'str'>

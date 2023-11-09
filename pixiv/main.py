@@ -1,7 +1,6 @@
 # imports
 import sys
-sys.path.append('../libs')
-from classes import *
+from ..classes import *
 # init
 
 def pixiv_function(session_sim, i, before=True):
